@@ -1,0 +1,1 @@
+interval action;timer;scheduling;recurring tasks;polling;background processing;thread safety;dotnet;csharp
