@@ -1,12 +1,4 @@
-## v1.3.15 (patch)
+## v1.3.15
 
-Changes since v1.3.14:
-
-- Sync .github\workflows\dotnet.yml ([@ktsu[bot]](https://github.com/ktsu[bot]))
-- Sync .github\dependabot.yml ([@ktsu[bot]](https://github.com/ktsu[bot]))
-- Sync icon.png ([@ktsu[bot]](https://github.com/ktsu[bot]))
-- Sync .gitignore ([@ktsu[bot]](https://github.com/ktsu[bot]))
-- Sync .gitattributes ([@ktsu[bot]](https://github.com/ktsu[bot]))
-- Sync global.json ([@ktsu[bot]](https://github.com/ktsu[bot]))
-- Bump Polyfill from 10.10.0 to 10.11.0 ([@dependabot[bot]](https://github.com/dependabot[bot]))
+No significant changes detected since v1.3.15.
 
