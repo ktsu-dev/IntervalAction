@@ -1,7 +1,11 @@
-## v1.3.25
+## v1.3.26 (patch)
 
 Changes since v1.3.25:
 
+- Sync .github\workflows\update-sdks.yml ([@ktsu[bot]](https://github.com/ktsu[bot]))
+- Sync .github\workflows\dotnet.yml ([@ktsu[bot]](https://github.com/ktsu[bot]))
+- Sync .github\workflows\dependabot-merge.yml ([@ktsu[bot]](https://github.com/ktsu[bot]))
+- Sync .gitattributes ([@ktsu[bot]](https://github.com/ktsu[bot]))
 
 ## v1.3.25 (patch)
 
@@ -301,73 +305,59 @@ Changes since v1.3.2-pre.15:
 
 ## v1.3.2-pre.15 (prerelease)
 
-Changes since v1.3.2-pre.14:
-
+No significant changes detected since v1.3.2-pre.14.
 
 ## v1.3.2-pre.14 (prerelease)
 
-Changes since v1.3.2-pre.13:
-
+No significant changes detected since v1.3.2-pre.13.
 
 ## v1.3.2-pre.13 (prerelease)
 
-Changes since v1.3.2-pre.12:
-
+No significant changes detected since v1.3.2-pre.12.
 
 ## v1.3.2-pre.12 (prerelease)
 
-Changes since v1.3.2-pre.11:
-
+No significant changes detected since v1.3.2-pre.11.
 
 ## v1.3.2-pre.11 (prerelease)
 
-Changes since v1.3.2-pre.10:
-
+No significant changes detected since v1.3.2-pre.10.
 
 ## v1.3.2-pre.10 (prerelease)
 
-Changes since v1.3.2-pre.9:
-
+No significant changes detected since v1.3.2-pre.9.
 
 ## v1.3.2-pre.9 (prerelease)
 
-Changes since v1.3.2-pre.8:
-
+No significant changes detected since v1.3.2-pre.8.
 
 ## v1.3.2-pre.8 (prerelease)
 
-Changes since v1.3.2-pre.7:
-
+No significant changes detected since v1.3.2-pre.7.
 
 ## v1.3.2-pre.7 (prerelease)
 
-Changes since v1.3.2-pre.6:
-
+No significant changes detected since v1.3.2-pre.6.
 
 ## v1.3.2-pre.6 (prerelease)
 
-Changes since v1.3.2-pre.5:
-
+No significant changes detected since v1.3.2-pre.5.
 
 ## v1.3.2-pre.5 (prerelease)
 
-Changes since v1.3.2-pre.4:
-
+No significant changes detected since v1.3.2-pre.4.
 
 ## v1.3.2-pre.4 (prerelease)
 
-Changes since v1.3.2-pre.3:
-
+No significant changes detected since v1.3.2-pre.3.
 
 ## v1.3.2-pre.3 (prerelease)
 
-Changes since v1.3.2-pre.2:
-
+No significant changes detected since v1.3.2-pre.2.
 
 ## v1.3.2-pre.2 (prerelease)
 
-Changes since v1.3.2-pre.1:
-
+No significant changes detected since v1.3.2-pre.1.
 
 ## v1.3.2-pre.1 (prerelease)
 
