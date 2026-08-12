@@ -3,6 +3,6 @@
   <Sdk Name="ktsu.Sdk" />
 
   <ItemGroup>
-    <PackageReference Include="Polyfill" />
+    <PackageReference Include="Polyfill" PrivateAssets="all" />
   </ItemGroup>
 </Project>
