@@ -1,8 +1,4 @@
-## v1.3.33 (patch)
+## v1.3.33
 
-Changes since v1.3.32:
-
-- Bump Polyfill from 11.0.2 to 11.2.0 ([@dependabot[bot]](https://github.com/dependabot[bot]))
-- Bump the ktsu group with 9 updates ([@dependabot[bot]](https://github.com/dependabot[bot]))
-- Sync .github\workflows\dotnet.yml ([@KtsuTools](https://github.com/KtsuTools))
+No significant changes detected since v1.3.33.
 
