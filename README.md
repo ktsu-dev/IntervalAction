@@ -8,7 +8,7 @@
 [![NuGet Downloads](https://img.shields.io/nuget/dt/ktsu.IntervalAction?label=Downloads&logo=nuget)](https://nuget.org/packages/ktsu.IntervalAction)
 [![GitHub commit activity](https://img.shields.io/github/commit-activity/m/ktsu-dev/IntervalAction?label=Commits&logo=github)](https://github.com/ktsu-dev/IntervalAction/commits/main)
 [![GitHub contributors](https://img.shields.io/github/contributors/ktsu-dev/IntervalAction?label=Contributors&logo=github)](https://github.com/ktsu-dev/IntervalAction/graphs/contributors)
-[![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/ktsu-dev/IntervalAction/dotnet.yml?label=Build&logo=github)](https://github.com/ktsu-dev/IntervalAction/actions)
+[![GitHub Actions Workflow Status](https://img.shields.io/github/actions/workflow/status/ktsu-dev/IntervalAction/dotnet.yml?branch=main&label=Build&logo=github)](https://github.com/ktsu-dev/IntervalAction/actions)
 
 ## Introduction
 
