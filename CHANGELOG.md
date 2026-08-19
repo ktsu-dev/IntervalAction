@@ -1,6 +1,8 @@
-## v1.3.35
+## v1.3.36 (patch)
 
-No significant changes detected since v1.3.35.
+Changes since v1.3.35:
+
+- docs: scope build badge to the default branch ([@matt-edmondson](https://github.com/matt-edmondson))
 
 ## v1.3.35 (patch)
 
