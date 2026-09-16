@@ -1,6 +1,7 @@
-## v1.3.45 (patch)
+## v1.3.46 (patch)
 
-Changes since v1.3.44:
+Changes since v1.3.45:
 
-- Gate Dependabot auto-merge on CI actually being green ([@Claude](https://github.com/Claude))
+- Bump ktsu.Sdk and 8 others ([@dependabot[bot]](https://github.com/dependabot[bot]))
+- Bump MSTest.Sdk from 4.4.0 to 4.4.1 ([@dependabot[bot]](https://github.com/dependabot[bot]))
 
