@@ -54,6 +54,36 @@ public class IntervalAction
 	private Lock Lock { get; } = new();
 
 	/// <summary>
+	/// Gets or sets the most recent restart, which the next restart waits on before it begins.
+	/// </summary>
+	/// <remarks>
+	/// <see cref="RestartAsync"/> reads <see cref="ShouldPoll"/>, stops, awaits the old polling task
+	/// and only then assigns a new one, re-taking <see cref="Lock"/> at each step rather than holding
+	/// it across the awaits. Two callers could therefore pass the same checks and each start a polling
+	/// loop, leaving the first running unreferenced against the same <see cref="ActionTask"/> field —
+	/// which is the overlap the class documents that it prevents. Chaining restarts through this task
+	/// serializes them without holding a lock over an await.
+	/// </remarks>
+	private Task RestartGate { get; set; } = Task.CompletedTask;
+
+	/// <summary>
+	/// Waits for a task to finish and discards however it finished.
+	/// </summary>
+	/// <param name="task">The task to wait on.</param>
+	/// <returns>A task that completes when <paramref name="task"/> has, and never faults.</returns>
+	/// <remarks>
+	/// Awaiting a faulted task rethrows its exception. A previous polling loop that faulted — which is
+	/// what an exception from the user's <see cref="Action"/> leaves behind — is replaceable exactly
+	/// like one that ended normally, so a restart observes the fault and moves on instead.
+	/// </remarks>
+	private static Task WaitAndDiscardOutcomeAsync(Task task) =>
+		task.ContinueWith(
+			static finished => { _ = finished.Exception; },
+			CancellationToken.None,
+			TaskContinuationOptions.None,
+			TaskScheduler.Default);
+
+	/// <summary>
 	/// Initializes a new instance of the <see cref="IntervalAction"/> class.
 	/// Don't use this constructor. Use <see cref="Start(IntervalActionOptions)"/> instead.
 	/// </summary>
@@ -103,8 +133,23 @@ public class IntervalAction
 	/// Asynchronously restarts the polling of the action.
 	/// </summary>
 	/// <returns>A task that represents the asynchronous operation.</returns>
-	public async Task RestartAsync()
+	public Task RestartAsync()
 	{
+		lock (Lock)
+		{
+			return RestartGate = RestartCoreAsync(RestartGate);
+		}
+	}
+
+	/// <summary>
+	/// Stops any current polling and starts a fresh polling task, once <paramref name="previousRestart"/> has finished.
+	/// </summary>
+	/// <param name="previousRestart">The restart this one follows, so that restarts do not interleave.</param>
+	/// <returns>A task that represents the asynchronous operation.</returns>
+	private async Task RestartCoreAsync(Task previousRestart)
+	{
+		await WaitAndDiscardOutcomeAsync(previousRestart).ConfigureAwait(false);
+
 		bool shouldPoll;
 
 		lock (Lock)
@@ -115,12 +160,22 @@ public class IntervalAction
 		if (shouldPoll)
 		{
 			Stop();
-			await PollingTask.ConfigureAwait(false);
+			await WaitAndDiscardOutcomeAsync(PollingTask).ConfigureAwait(false);
 		}
 
 		lock (Lock)
 		{
 			ShouldPoll = true;
+
+			// A faulted action task is left in place by TryRun, which throws rather than clearing it.
+			// The new loop's first tick would observe it again and fault too, so the restart would
+			// have replaced one dead loop with another. Only a task that has finished is cleared: an
+			// action still running keeps its slot, which is what stops the new loop overlapping it.
+			if (ActionTask?.IsCompleted ?? false)
+			{
+				_ = ActionTask.Exception;
+				ActionTask = null;
+			}
 		}
 
 		PollingTask = Task.Run(async () =>

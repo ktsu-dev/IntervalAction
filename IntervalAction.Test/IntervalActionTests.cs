@@ -201,6 +201,101 @@ public class IntervalActionTests
 	}
 
 	[TestMethod]
+	public async Task RestartResumesPollingAfterActionThrows()
+	{
+		// Arrange: the action throws on its first invocation only, so if polling really resumes
+		// the counter keeps climbing afterwards.
+		int counter = 0;
+		IntervalActionOptions options = new()
+		{
+			PollingInterval = TimeSpan.FromMilliseconds(10),
+			ActionInterval = TimeSpan.Zero,
+			Action = () =>
+			{
+				if (Interlocked.Increment(ref counter) == 1)
+				{
+					throw new InvalidOperationException("Test exception message");
+				}
+			},
+			IntervalType = IntervalType.FromLastStart
+		};
+
+		IntervalAction intervalAction = IntervalAction.Start(options);
+
+		// Let the throw happen and the polling loop observe it.
+		await Task.Delay(200).ConfigureAwait(false);
+		_ = Assert.ThrowsExactly<InvalidOperationException>(intervalAction.RethrowExceptions);
+
+		int countAtFault = Volatile.Read(ref counter);
+
+		// Act: the documented recovery — observe the failure, then restart.
+		await intervalAction.RestartAsync().ConfigureAwait(false);
+		await Task.Delay(200).ConfigureAwait(false);
+		intervalAction.Stop();
+
+		// Assert
+		Assert.IsGreaterThan(countAtFault, Volatile.Read(ref counter), "Polling should resume after a restart following an action exception.");
+
+		// The restart replaced the faulted polling task, so nothing stale is left to rethrow.
+		intervalAction.RethrowExceptions();
+	}
+
+	[TestMethod]
+	public async Task RestartDoesNotRethrowTheStaleActionException()
+	{
+		// Arrange
+		string exceptionMessage = "Test exception message";
+		IntervalActionOptions options = new()
+		{
+			PollingInterval = TimeSpan.FromMilliseconds(10),
+			ActionInterval = TimeSpan.Zero,
+			Action = () => throw new InvalidOperationException(exceptionMessage),
+			IntervalType = IntervalType.FromLastStart
+		};
+
+		IntervalAction intervalAction = IntervalAction.Start(options);
+		await Task.Delay(200).ConfigureAwait(false);
+		_ = Assert.ThrowsExactly<InvalidOperationException>(intervalAction.RethrowExceptions);
+
+		// Act & Assert: restarting must not surface the exception that already killed the old loop,
+		// even though this action goes on throwing — the restart itself has to complete.
+		await intervalAction.RestartAsync().ConfigureAwait(false);
+
+		intervalAction.Stop();
+	}
+
+	[TestMethod]
+	public async Task ConcurrentRestartsLeaveTheInstancePolling()
+	{
+		// Arrange
+		int counter = 0;
+		IntervalActionOptions options = new()
+		{
+			PollingInterval = TimeSpan.FromMilliseconds(10),
+			ActionInterval = TimeSpan.Zero,
+			Action = () => Interlocked.Increment(ref counter),
+			IntervalType = IntervalType.FromLastStart
+		};
+
+		IntervalAction intervalAction = IntervalAction.Start(options);
+
+		// Act: restart from several threads at once. Restarts are chained rather than interleaved,
+		// so every one of these completes and the last one leaves a running loop behind.
+		await Task.WhenAll(Enumerable.Range(0, 8).Select(_ => Task.Run(intervalAction.RestartAsync))).ConfigureAwait(false);
+
+		int countAfterRestarts = Volatile.Read(ref counter);
+		await Task.Delay(200).ConfigureAwait(false);
+		intervalAction.Stop();
+		await intervalAction.PollingTask.ConfigureAwait(false);
+
+		// Assert: the instance is still polling, and Stop still ends the loop it names.
+		Assert.IsGreaterThan(countAfterRestarts, Volatile.Read(ref counter), "The instance should still be polling after concurrent restarts.");
+		Assert.IsTrue(intervalAction.PollingTask.IsCompleted, "Stop should end the polling task the instance names.");
+
+		intervalAction.RethrowExceptions();
+	}
+
+	[TestMethod]
 	public async Task ZeroIntervalExecutesQuickly()
 	{
 		int counter = 0;
