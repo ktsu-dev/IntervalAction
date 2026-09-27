@@ -150,18 +150,11 @@ public class IntervalAction
 	{
 		await WaitAndDiscardOutcomeAsync(previousRestart).ConfigureAwait(false);
 
-		bool shouldPoll;
-
-		lock (Lock)
-		{
-			shouldPoll = ShouldPoll;
-		}
-
-		if (shouldPoll)
-		{
-			Stop();
-			await WaitAndDiscardOutcomeAsync(PollingTask).ConfigureAwait(false);
-		}
+		// Wait for the old loop whether or not it is still meant to be polling. After Stop() it can
+		// still be inside its delay, and would see ShouldPoll set again below and keep running
+		// alongside the new loop, unreferenced.
+		Stop();
+		await WaitAndDiscardOutcomeAsync(PollingTask).ConfigureAwait(false);
 
 		lock (Lock)
 		{
@@ -208,50 +201,48 @@ public class IntervalAction
 	{
 		Ensure.NotNull(Action);
 
-		if (ActionTask?.IsCompleted ?? false)
-		{
-			if (ActionTask.Exception is not null)
-			{
-				throw ActionTask.Exception.GetBaseException();
-			}
-
-			ActionTask = null;
-		}
-
-		DateTimeOffset lastRunTime;
-
+		// Check and claim ActionTask under the lock, so two callers can never both see it empty and
+		// each start the action
 		lock (Lock)
 		{
-			lastRunTime = LastRunTime;
-		}
-
-		if (ActionInterval >= TimeSpan.Zero && ActionTask is null && DateTimeOffset.Now - lastRunTime > ActionInterval)
-		{
-			ActionTask = Task.Run(() =>
+			if (ActionTask?.IsCompleted ?? false)
 			{
-				if (IntervalType == IntervalType.FromLastStart)
+				if (ActionTask.Exception is not null)
 				{
-					lock (Lock)
-					{
-						LastRunTime = DateTimeOffset.Now;
-					}
+					throw ActionTask.Exception.GetBaseException();
 				}
 
-				Action();
+				ActionTask = null;
+			}
 
-				if (IntervalType == IntervalType.FromLastCompletion)
+			if (ActionInterval >= TimeSpan.Zero && ActionTask is null && DateTimeOffset.Now - LastRunTime > ActionInterval)
+			{
+				ActionTask = Task.Run(() =>
 				{
-					lock (Lock)
+					if (IntervalType == IntervalType.FromLastStart)
 					{
-						LastRunTime = DateTimeOffset.Now;
+						lock (Lock)
+						{
+							LastRunTime = DateTimeOffset.Now;
+						}
 					}
-				}
-			});
 
-			return true;
+					Action();
+
+					if (IntervalType == IntervalType.FromLastCompletion)
+					{
+						lock (Lock)
+						{
+							LastRunTime = DateTimeOffset.Now;
+						}
+					}
+				});
+
+				return true;
+			}
+
+			return false;
 		}
-
-		return false;
 	}
 
 	/// <summary>
