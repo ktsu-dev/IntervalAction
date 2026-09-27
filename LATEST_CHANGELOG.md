@@ -1,4 +1,6 @@
-## v1.4.1
+## v1.4.2 (patch)
 
-No significant changes detected since v1.4.1.
+Changes since v1.4.1:
+
+- fix: wait for a stopped polling loop before a restart starts a new one [patch] ([@matt-edmondson](https://github.com/matt-edmondson))
 
