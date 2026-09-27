@@ -95,10 +95,25 @@ public class IntervalAction
 	/// <param name="intervalActionOptions">The options for configuring the interval action.</param>
 	/// <returns>A new instance of <see cref="IntervalAction"/>.</returns>
 	/// <exception cref="ArgumentNullException">Thrown if <paramref name="intervalActionOptions"/> or its <see cref="IntervalActionOptions.Action"/> is null.</exception>
+	/// <exception cref="ArgumentOutOfRangeException">
+	/// Thrown if <see cref="IntervalActionOptions.PollingInterval"/> is zero or negative, which includes
+	/// <see cref="Timeout.InfiniteTimeSpan"/>.
+	/// </exception>
 	public static IntervalAction Start(IntervalActionOptions intervalActionOptions)
 	{
 		Ensure.NotNull(intervalActionOptions);
 		Ensure.NotNull(intervalActionOptions.Action);
+
+		// Rejected here rather than left to Task.Delay in the polling loop: a negative interval would
+		// fault the loop after the first run, an infinite one would leave Restart() and Stop() waiting
+		// on a delay that never ends, and zero would spin a core.
+		if (intervalActionOptions.PollingInterval <= TimeSpan.Zero)
+		{
+			throw new ArgumentOutOfRangeException(
+				nameof(intervalActionOptions),
+				intervalActionOptions.PollingInterval,
+				$"{nameof(IntervalActionOptions.PollingInterval)} must be greater than zero.");
+		}
 
 		IntervalAction intervalAction = new()
 		{

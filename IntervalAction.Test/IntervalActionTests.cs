@@ -117,6 +117,22 @@ public class IntervalActionTests
 	}
 
 	[TestMethod]
+	[DataRow(-2000)]
+	[DataRow(0)]
+	[DataRow(-1)] // Timeout.InfiniteTimeSpan
+	public void StartNonPositivePollingIntervalThrows(int pollingIntervalMilliseconds)
+	{
+		IntervalActionOptions options = new()
+		{
+			PollingInterval = TimeSpan.FromMilliseconds(pollingIntervalMilliseconds),
+			ActionInterval = TimeSpan.FromMilliseconds(10),
+			Action = () => { },
+			IntervalType = IntervalType.FromLastCompletion
+		};
+		Assert.ThrowsExactly<ArgumentOutOfRangeException>(() => IntervalAction.Start(options));
+	}
+
+	[TestMethod]
 	public async Task RestartStopsPreviousPollingTaskAndStartsNewOne()
 	{
 		// Arrange
