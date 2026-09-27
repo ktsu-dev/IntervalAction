@@ -150,6 +150,48 @@ public class IntervalActionTests
 	}
 
 	[TestMethod]
+	public async Task RestartRightAfterStopLeavesOnlyOnePollingLoop()
+	{
+		// Arrange
+		int counter = 0;
+		TimeSpan pollingInterval = TimeSpan.FromMilliseconds(200);
+		IntervalActionOptions options = new()
+		{
+			PollingInterval = pollingInterval,
+			ActionInterval = TimeSpan.Zero,
+			Action = () => Interlocked.Increment(ref counter),
+			IntervalType = IntervalType.FromLastStart
+		};
+
+		IntervalAction intervalAction = IntervalAction.Start(options);
+		// Let the loop run its first tick and enter its delay.
+		await Task.Delay(50).ConfigureAwait(false);
+
+		// Act: stop, then restart while the old loop is still inside its delay
+		Task oldPollingTask = intervalAction.PollingTask;
+		intervalAction.Stop();
+		await intervalAction.RestartAsync().ConfigureAwait(false);
+
+		// Assert: the old loop has ended rather than being left to resume alongside the new one
+		Assert.IsTrue(oldPollingTask.IsCompleted, "Old polling task should have completed before the restart started a new one");
+		Assert.AreNotSame(oldPollingTask, intervalAction.PollingTask);
+
+		int counterAtRestart = Volatile.Read(ref counter);
+		System.Diagnostics.Stopwatch stopwatch = System.Diagnostics.Stopwatch.StartNew();
+		await Task.Delay(TimeSpan.FromTicks(pollingInterval.Ticks * 10)).ConfigureAwait(false);
+		intervalAction.Stop();
+		await intervalAction.PollingTask.ConfigureAwait(false);
+		stopwatch.Stop();
+
+		// One loop starts the action at most once per polling interval, plus its first tick
+		int executions = Volatile.Read(ref counter) - counterAtRestart;
+		int maxExecutionsForOneLoop = (int)(stopwatch.Elapsed.Ticks / pollingInterval.Ticks) + 1;
+		Assert.IsLessThanOrEqualTo(maxExecutionsForOneLoop, executions, "The action ran faster than a single polling loop allows");
+
+		intervalAction.RethrowExceptions();
+	}
+
+	[TestMethod]
 	public async Task StopPollingTaskStopsExecuting()
 	{
 		// Arrange
