@@ -208,6 +208,49 @@ public class IntervalActionTests
 	}
 
 	[TestMethod]
+	public async Task StopDuringAPendingRestartKeepsTheActionStopped()
+	{
+		// Arrange
+		int counter = 0;
+		IntervalActionOptions options = new()
+		{
+			PollingInterval = TimeSpan.FromMilliseconds(200),
+			ActionInterval = TimeSpan.Zero,
+			Action = () => Interlocked.Increment(ref counter),
+			IntervalType = IntervalType.FromLastStart
+		};
+
+		IntervalAction intervalAction = IntervalAction.Start(options);
+		// Let the loop run its first tick and enter its delay, so the restart below has to wait for it.
+		await Task.Delay(50).ConfigureAwait(false);
+
+		// Act: stop while the restart is still waiting for the old loop to finish
+		Task restart = intervalAction.RestartAsync();
+		Assert.IsFalse(restart.IsCompleted, "The restart should still be waiting on the old loop's delay.");
+		intervalAction.Stop();
+		await restart.ConfigureAwait(false);
+
+		// Bounded, because the failure this guards against is a loop that never ends.
+		Task pollingTask = intervalAction.PollingTask;
+		Assert.AreSame(pollingTask, await Task.WhenAny(pollingTask, Task.Delay(1000)).ConfigureAwait(false), "The polling loop should end after Stop, even with a restart pending.");
+
+		int counterAfterStop = Volatile.Read(ref counter);
+		await Task.Delay(500).ConfigureAwait(false);
+
+		// Assert: the later Stop wins over the earlier restart
+		Assert.AreEqual(counterAfterStop, Volatile.Read(ref counter), "The action should not run after Stop, even with a restart pending.");
+		Assert.IsTrue(intervalAction.PollingTask.IsCompleted, "No polling loop should be running after Stop.");
+
+		// A restart requested after the stop still resumes polling.
+		await intervalAction.RestartAsync().ConfigureAwait(false);
+		await Task.Delay(50).ConfigureAwait(false);
+		Assert.IsGreaterThan(counterAfterStop, Volatile.Read(ref counter), "A restart after Stop should resume execution.");
+
+		intervalAction.Stop();
+		intervalAction.RethrowExceptions();
+	}
+
+	[TestMethod]
 	public async Task StopPollingTaskStopsExecuting()
 	{
 		// Arrange
