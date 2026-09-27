@@ -2,6 +2,8 @@
 
 namespace ktsu.IntervalAction;
 
+using System.Runtime.ExceptionServices;
+
 /// <summary>
 /// Represents an action that is executed at specified intervals.
 /// Provides options for the interval type, which can be measured from the last completion or start time of the action.
@@ -224,7 +226,8 @@ public class IntervalAction
 			{
 				if (ActionTask.Exception is not null)
 				{
-					throw ActionTask.Exception.GetBaseException();
+					// Rethrow through ExceptionDispatchInfo so the trace still shows where the action failed
+					ExceptionDispatchInfo.Capture(ActionTask.Exception.GetBaseException()).Throw();
 				}
 
 				ActionTask = null;
@@ -267,7 +270,7 @@ public class IntervalAction
 	{
 		if (PollingTask.Exception is not null)
 		{
-			throw PollingTask.Exception.GetBaseException();
+			ExceptionDispatchInfo.Capture(PollingTask.Exception.GetBaseException()).Throw();
 		}
 	}
 }
