@@ -259,6 +259,30 @@ public class IntervalActionTests
 	}
 
 	[TestMethod]
+	public async Task RethrowExceptionsKeepsTheActionStackTrace()
+	{
+		// Arrange
+		IntervalActionOptions options = new()
+		{
+			PollingInterval = TimeSpan.FromMilliseconds(10),
+			ActionInterval = TimeSpan.Zero,
+			Action = ThrowFromNamedMethod,
+			IntervalType = IntervalType.FromLastStart
+		};
+		IntervalAction intervalAction = IntervalAction.Start(options);
+		await Task.Delay(100).ConfigureAwait(false);
+
+		// Act
+		InvalidOperationException exception = Assert.ThrowsExactly<InvalidOperationException>(intervalAction.RethrowExceptions);
+		intervalAction.Stop();
+
+		// Assert: `throw ex` used to reset the trace so it began at RethrowExceptions
+		StringAssert.Contains(exception.StackTrace, nameof(ThrowFromNamedMethod));
+	}
+
+	private static void ThrowFromNamedMethod() => throw new InvalidOperationException("Thrown from a named method");
+
+	[TestMethod]
 	public async Task RestartResumesPollingAfterActionThrows()
 	{
 		// Arrange: the action throws on its first invocation only, so if polling really resumes
