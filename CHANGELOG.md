@@ -1,6 +1,9 @@
-## v1.4.2
+## v1.4.3 (patch)
 
-No significant changes detected since v1.4.2.
+Changes since v1.4.2:
+
+- Let a Stop() during a pending RestartAsync() win [patch] ([@Claude](https://github.com/Claude))
+- Keep the action's stack trace when RethrowExceptions rethrows [patch] ([@Claude](https://github.com/Claude))
 
 ## v1.4.2 (patch)
 
