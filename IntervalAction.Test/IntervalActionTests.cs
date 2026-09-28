@@ -485,4 +485,40 @@ public class IntervalActionTests
 
 		intervalAction.RethrowExceptions();
 	}
+
+	[TestMethod]
+	public async Task SettingTheWallClockBackDoesNotDelayTheNextRun()
+	{
+		int counter = 0;
+		IntervalActionOptions options = new()
+		{
+			// Long enough that the loop runs the action once and then leaves TryRun to the test.
+			PollingInterval = TimeSpan.FromHours(1),
+			ActionInterval = TimeSpan.FromMilliseconds(50),
+			Action = () => Interlocked.Increment(ref counter),
+			IntervalType = IntervalType.FromLastCompletion
+		};
+
+		IntervalAction intervalAction = IntervalAction.Start(options);
+
+		// Wait for the first run to finish, so it has recorded when it ran. The loop then sits in its
+		// hour-long delay, and stopping it now keeps it from ever calling TryRun again.
+		DateTimeOffset deadline = DateTimeOffset.Now.AddSeconds(10);
+		while (intervalAction.ActionTask is not { IsCompleted: true } && DateTimeOffset.Now < deadline)
+		{
+			await Task.Delay(10).ConfigureAwait(false);
+		}
+
+		intervalAction.Stop();
+		Assert.AreEqual(1, counter, "Expected the first run to have happened.");
+
+		// This is where a wall clock that has just been set back an hour puts the last run: an hour
+		// ahead of now. Only wall-clock time moves when the clock is set, so this is the whole of what
+		// a clock change does to the instance.
+		intervalAction.LastRunTime = DateTimeOffset.Now.AddHours(1);
+
+		await Task.Delay(options.ActionInterval * 3).ConfigureAwait(false);
+
+		Assert.IsTrue(intervalAction.TryRun(), "Expected the action to run once its interval had passed, whatever the wall clock says.");
+	}
 }
