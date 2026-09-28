@@ -69,6 +69,17 @@ public class IntervalAction
 	private Task RestartGate { get; set; } = Task.CompletedTask;
 
 	/// <summary>
+	/// Gets or sets how many times <see cref="Stop"/> has been called.
+	/// </summary>
+	/// <remarks>
+	/// A restart records this when it is requested and re-enables polling only if it is unchanged
+	/// once the restart's awaits have finished. Without it, a <see cref="Stop"/> that arrives while a
+	/// <see cref="RestartAsync"/> is still waiting would be overwritten when the restart sets
+	/// <see cref="ShouldPoll"/>, and the action would keep running after the caller stopped it.
+	/// </remarks>
+	private long StopGeneration { get; set; }
+
+	/// <summary>
 	/// Waits for a task to finish and discards however it finished.
 	/// </summary>
 	/// <param name="task">The task to wait on.</param>
@@ -133,10 +144,15 @@ public class IntervalAction
 	/// <summary>
 	/// Stops the polling of the action.
 	/// </summary>
+	/// <remarks>
+	/// A restart that is still pending when this is called is cancelled rather than left to resume
+	/// polling once it finishes. A restart requested after this call is unaffected.
+	/// </remarks>
 	public void Stop()
 	{
 		lock (Lock)
 		{
+			StopGeneration++;
 			ShouldPoll = false;
 		}
 	}
@@ -154,7 +170,7 @@ public class IntervalAction
 	{
 		lock (Lock)
 		{
-			return RestartGate = RestartCoreAsync(RestartGate);
+			return RestartGate = RestartCoreAsync(RestartGate, StopGeneration);
 		}
 	}
 
@@ -162,19 +178,33 @@ public class IntervalAction
 	/// Stops any current polling and starts a fresh polling task, once <paramref name="previousRestart"/> has finished.
 	/// </summary>
 	/// <param name="previousRestart">The restart this one follows, so that restarts do not interleave.</param>
+	/// <param name="stopGeneration">
+	/// The value of <see cref="StopGeneration"/> when the restart was requested. If a
+	/// <see cref="Stop"/> has happened since, the restart ends without starting a new loop.
+	/// </param>
 	/// <returns>A task that represents the asynchronous operation.</returns>
-	private async Task RestartCoreAsync(Task previousRestart)
+	private async Task RestartCoreAsync(Task previousRestart, long stopGeneration)
 	{
 		await WaitAndDiscardOutcomeAsync(previousRestart).ConfigureAwait(false);
 
 		// Wait for the old loop whether or not it is still meant to be polling. After Stop() it can
 		// still be inside its delay, and would see ShouldPoll set again below and keep running
-		// alongside the new loop, unreferenced.
-		Stop();
+		// alongside the new loop, unreferenced. This clears ShouldPoll directly rather than calling
+		// Stop(), which would count as a caller's stop and cancel this very restart.
+		lock (Lock)
+		{
+			ShouldPoll = false;
+		}
+
 		await WaitAndDiscardOutcomeAsync(PollingTask).ConfigureAwait(false);
 
 		lock (Lock)
 		{
+			if (StopGeneration != stopGeneration)
+			{
+				return;
+			}
+
 			ShouldPoll = true;
 
 			// A faulted action task is left in place by TryRun, which throws rather than clearing it.
