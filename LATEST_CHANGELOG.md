@@ -1,7 +1,6 @@
-## v1.4.3 (patch)
+## v1.4.4-pre.1 (prerelease)
 
-Changes since v1.4.2:
+Changes since v1.4.3:
 
-- Let a Stop() during a pending RestartAsync() win [patch] ([@Claude](https://github.com/Claude))
-- Keep the action's stack trace when RethrowExceptions rethrows [patch] ([@Claude](https://github.com/Claude))
+- Bump Polyfill from 11.4.0 to 11.4.1 ([@dependabot[bot]](https://github.com/dependabot[bot]))
 

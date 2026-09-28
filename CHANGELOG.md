@@ -1,3 +1,9 @@
+## v1.4.4-pre.1 (prerelease)
+
+Changes since v1.4.3:
+
+- Bump Polyfill from 11.4.0 to 11.4.1 ([@dependabot[bot]](https://github.com/dependabot[bot]))
+
 ## v1.4.3 (patch)
 
 Changes since v1.4.2:
@@ -30,15 +36,19 @@ Changes since v1.3.0:
 - docs: scope build badge to the default branch ([@matt-edmondson](https://github.com/matt-edmondson))
 - Stop Update SDKs failing when there is nothing to update ([@matt-edmondson](https://github.com/matt-edmondson))
 - Add direct System.Memory and System.Threading.Tasks.Extensions references for netstandard TFMs to fix KTSU0001 [patch] ([@matt-edmondson](https://github.com/matt-edmondson))
+- Sync .github\workflows\dotnet.yml ([@KtsuTools](https://github.com/KtsuTools))
 - Sync .editorconfig ([@KtsuTools](https://github.com/KtsuTools))
+- Sync .github\workflows\dotnet.yml ([@KtsuTools](https://github.com/KtsuTools))
 - Update ktsu.Sdk to version 2.25.0 and modify Polyfill package reference to use PrivateAssets ([@matt-edmondson](https://github.com/matt-edmondson))
 - chore: update icon.png ([@matt-edmondson](https://github.com/matt-edmondson))
 - chore: update ktsu.Sdk to 2.21.1 [patch] ([@matt-edmondson](https://github.com/matt-edmondson))
 - chore: remove unused SourceLink package versions ([@matt-edmondson](https://github.com/matt-edmondson))
 - chore: remove SourceLink package references from project ([@matt-edmondson](https://github.com/matt-edmondson))
 - Add TAGS.md with NuGet package tags ([@matt-edmondson](https://github.com/matt-edmondson))
+- Sync .github\workflows\dotnet.yml ([@KtsuTools](https://github.com/KtsuTools))
 - Remove legacy build scripts ([@matt-edmondson](https://github.com/matt-edmondson))
 - Add compatibility suppressions for new .NET versions and dynamic member types ([@matt-edmondson](https://github.com/matt-edmondson))
+- Remove .github\workflows\project.yml ([@matt-edmondson](https://github.com/matt-edmondson))
 - Migrate to dotnet 10 ([@matt-edmondson](https://github.com/matt-edmondson))
 - Remove caching configuration for .NET setup in workflow ([@matt-edmondson](https://github.com/matt-edmondson))
 - Add CLAUDE.md for project guidance and documentation ([@matt-edmondson](https://github.com/matt-edmondson))
@@ -150,13 +160,13 @@ Changes since v1.3.33:
 
 Changes since v1.3.32:
 
-- Bump Polyfill from 11.0.2 to 11.2.0 ([@dependabot[bot]](https://github.com/dependabot[bot]))
-- Bump the ktsu group with 9 updates ([@dependabot[bot]](https://github.com/dependabot[bot]))
 - Sync .github\workflows\dotnet.yml ([@KtsuTools](https://github.com/KtsuTools))
 
 ## v1.3.33-pre.1 (prerelease)
 
-No significant changes detected since v1.3.33.
+Changes since v1.3.32:
+
+- Sync .github\workflows\dotnet.yml ([@KtsuTools](https://github.com/KtsuTools))
 
 ## v1.3.32 (patch)
 
@@ -169,7 +179,6 @@ Changes since v1.3.31:
 Changes since v1.3.30:
 
 - Sync .github\workflows\dotnet.yml ([@KtsuTools](https://github.com/KtsuTools))
-- Bump Polyfill from 11.0.1 to 11.0.2 ([@dependabot[bot]](https://github.com/dependabot[bot]))
 
 ## v1.3.30 (patch)
 
@@ -307,10 +316,13 @@ Changes since v1.3.11:
 Changes since v1.3.10:
 
 - Add TAGS.md with NuGet package tags ([@matt-edmondson](https://github.com/matt-edmondson))
+- Sync .github\workflows\dotnet.yml ([@KtsuTools](https://github.com/KtsuTools))
 
 ## v1.3.11-pre.1 (prerelease)
 
-No significant changes detected since v1.3.11.
+Changes since v1.3.10:
+
+- Sync .github\workflows\dotnet.yml ([@KtsuTools](https://github.com/KtsuTools))
 
 ## v1.3.10 (patch)
 
@@ -324,7 +336,11 @@ Changes since v1.3.9:
 
 ## v1.3.10-pre.1 (prerelease)
 
-No significant changes detected since v1.3.10.
+Changes since v1.3.9:
+
+- Sync .github\workflows\dotnet.yml ([@ktsu[bot]](https://github.com/ktsu[bot]))
+- Sync .github\workflows\dotnet.yml ([@ktsu[bot]](https://github.com/ktsu[bot]))
+- Sync .github\workflows\dotnet.yml ([@ktsu[bot]](https://github.com/ktsu[bot]))
 
 ## v1.3.9 (patch)
 
@@ -406,7 +422,11 @@ Changes since v1.3.8-pre.1:
 
 ## v1.3.8-pre.1 (prerelease)
 
-No significant changes detected since v1.3.8.
+Changes since v1.3.7:
+
+- Sync scripts\update-winget-manifests.ps1 ([@ktsu[bot]](https://github.com/ktsu[bot]))
+- Sync global.json ([@ktsu[bot]](https://github.com/ktsu[bot]))
+- Sync COPYRIGHT.md ([@ktsu[bot]](https://github.com/ktsu[bot]))
 
 ## v1.3.7 (patch)
 
@@ -419,15 +439,16 @@ Changes since v1.3.6:
 Changes since v1.3.5:
 
 - Remove .github\workflows\project.yml ([@matt-edmondson](https://github.com/matt-edmondson))
+
+## v1.3.6-pre.1 (prerelease)
+
+Changes since v1.3.5:
+
 - Merge remote-tracking branch 'refs/remotes/origin/main' ([@ktsu[bot]](https://github.com/ktsu[bot]))
 - Sync global.json ([@ktsu[bot]](https://github.com/ktsu[bot]))
 - Merge remote-tracking branch 'refs/remotes/origin/main' ([@ktsu[bot]](https://github.com/ktsu[bot]))
 - Sync .github\workflows\dotnet.yml ([@ktsu[bot]](https://github.com/ktsu[bot]))
 - Sync .gitignore ([@ktsu[bot]](https://github.com/ktsu[bot]))
-
-## v1.3.6-pre.1 (prerelease)
-
-No significant changes detected since v1.3.6.
 
 ## v1.3.5 (patch)
 
@@ -463,7 +484,13 @@ Changes since v1.3.4-pre.1:
 
 ## v1.3.4-pre.1 (prerelease)
 
-No significant changes detected since v1.3.4.
+Changes since v1.3.3:
+
+- Sync scripts\PSBuild.psm1 ([@ktsu[bot]](https://github.com/ktsu[bot]))
+- Sync scripts\update-winget-manifests.ps1 ([@ktsu[bot]](https://github.com/ktsu[bot]))
+- Sync .github\workflows\dotnet.yml ([@ktsu[bot]](https://github.com/ktsu[bot]))
+- Sync .gitattributes ([@ktsu[bot]](https://github.com/ktsu[bot]))
+- Sync .runsettings ([@ktsu[bot]](https://github.com/ktsu[bot]))
 
 ## v1.3.3 (patch)
 
@@ -560,7 +587,9 @@ No significant changes detected since v1.3.2-pre.1.
 
 ## v1.3.2-pre.1 (prerelease)
 
-No significant changes detected since v1.3.2.
+Changes since v1.3.1:
+
+- Sync scripts\PSBuild.psm1 ([@ktsu[bot]](https://github.com/ktsu[bot]))
 
 ## v1.3.1 (patch)
 
@@ -579,7 +608,9 @@ Changes since v1.3.1-pre.1:
 
 ## v1.3.1-pre.1 (prerelease)
 
-No significant changes detected since v1.3.1.
+Changes since v1.3.0:
+
+- Sync .editorconfig ([@ktsu[bot]](https://github.com/ktsu[bot]))
 
 ## v1.3.0 (minor)
 
