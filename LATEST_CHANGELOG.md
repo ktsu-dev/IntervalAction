@@ -1,6 +1,7 @@
-## v1.4.4 (patch)
+## v1.4.5 (patch)
 
-Changes since v1.4.3:
+Changes since v1.4.4:
 
-- Schedule the action from a monotonic clock, not the wall clock [patch] ([@Claude](https://github.com/Claude))
+- Wait for the polling loop to fault instead of sleeping in exception tests ([@Claude](https://github.com/Claude))
+- Move CI onto the shared ci-shared.yml pipeline ([@Claude](https://github.com/Claude))
 
