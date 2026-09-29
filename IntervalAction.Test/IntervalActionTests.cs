@@ -293,8 +293,7 @@ public class IntervalActionTests
 			IntervalType = IntervalType.FromLastStart
 		};
 		IntervalAction intervalAction = IntervalAction.Start(options);
-		// Allow the polling loop to execute a few times.
-		await Task.Delay(30).ConfigureAwait(false);
+		await WaitForPollingToFaultAsync(intervalAction).ConfigureAwait(false);
 		// Act
 		InvalidOperationException exception = Assert.ThrowsExactly<InvalidOperationException>(intervalAction.RethrowExceptions);
 		Assert.AreEqual(exceptionMessage, exception.Message);
@@ -313,7 +312,7 @@ public class IntervalActionTests
 			IntervalType = IntervalType.FromLastStart
 		};
 		IntervalAction intervalAction = IntervalAction.Start(options);
-		await Task.Delay(100).ConfigureAwait(false);
+		await WaitForPollingToFaultAsync(intervalAction).ConfigureAwait(false);
 
 		// Act
 		InvalidOperationException exception = Assert.ThrowsExactly<InvalidOperationException>(intervalAction.RethrowExceptions);
@@ -321,6 +320,26 @@ public class IntervalActionTests
 
 		// Assert: `throw ex` used to reset the trace so it began at RethrowExceptions
 		StringAssert.Contains(exception.StackTrace, nameof(ThrowFromNamedMethod));
+	}
+
+	/// <summary>
+	/// Waits until the polling loop has ended, which for an action that throws is when the loop
+	/// has observed the fault and <see cref="IntervalAction.RethrowExceptions"/> has something to throw.
+	/// </summary>
+	/// <param name="intervalAction">The instance whose polling loop is expected to fault.</param>
+	/// <returns>A task that completes once the polling loop has ended.</returns>
+	/// <remarks>
+	/// An exception reaches the polling task in three hops: one tick starts the action on the
+	/// thread pool, the action faults, and a later tick sees the faulted task and throws. That is
+	/// at least one polling interval plus two thread pool dispatches, none of which a fixed delay
+	/// can bound; a slow runner (macOS CI) took longer than the 30 ms the test used to allow.
+	/// Waiting on the task itself is exact, and the timeout only turns a hang into a failure.
+	/// </remarks>
+	private static async Task WaitForPollingToFaultAsync(IntervalAction intervalAction)
+	{
+		Task pollingTask = intervalAction.PollingTask;
+		Task finished = await Task.WhenAny(pollingTask, Task.Delay(TimeSpan.FromSeconds(10))).ConfigureAwait(false);
+		Assert.AreSame(pollingTask, finished, "The polling loop should fault after the action throws.");
 	}
 
 	private static void ThrowFromNamedMethod() => throw new InvalidOperationException("Thrown from a named method");
@@ -348,7 +367,7 @@ public class IntervalActionTests
 		IntervalAction intervalAction = IntervalAction.Start(options);
 
 		// Let the throw happen and the polling loop observe it.
-		await Task.Delay(200).ConfigureAwait(false);
+		await WaitForPollingToFaultAsync(intervalAction).ConfigureAwait(false);
 		_ = Assert.ThrowsExactly<InvalidOperationException>(intervalAction.RethrowExceptions);
 
 		int countAtFault = Volatile.Read(ref counter);
@@ -379,7 +398,7 @@ public class IntervalActionTests
 		};
 
 		IntervalAction intervalAction = IntervalAction.Start(options);
-		await Task.Delay(200).ConfigureAwait(false);
+		await WaitForPollingToFaultAsync(intervalAction).ConfigureAwait(false);
 		_ = Assert.ThrowsExactly<InvalidOperationException>(intervalAction.RethrowExceptions);
 
 		// Act & Assert: restarting must not surface the exception that already killed the old loop,
