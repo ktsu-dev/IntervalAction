@@ -1,7 +1,4 @@
-## v1.4.5 (patch)
+## v1.4.5
 
-Changes since v1.4.4:
-
-- Wait for the polling loop to fault instead of sleeping in exception tests ([@Claude](https://github.com/Claude))
-- Move CI onto the shared ci-shared.yml pipeline ([@Claude](https://github.com/Claude))
+No significant changes detected since v1.4.5.
 
