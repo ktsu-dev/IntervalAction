@@ -1,6 +1,6 @@
-## v1.4.4-pre.1 (prerelease)
+## v1.4.4 (patch)
 
 Changes since v1.4.3:
 
-- Bump Polyfill from 11.4.0 to 11.4.1 ([@dependabot[bot]](https://github.com/dependabot[bot]))
+- Schedule the action from a monotonic clock, not the wall clock [patch] ([@Claude](https://github.com/Claude))
 
