@@ -2,6 +2,7 @@
 
 namespace ktsu.IntervalAction;
 
+using System.Diagnostics;
 using System.Runtime.ExceptionServices;
 
 /// <summary>
@@ -14,9 +15,20 @@ using System.Runtime.ExceptionServices;
 public class IntervalAction
 {
 	/// <summary>
-	/// Gets or sets the last run time of the action.
+	/// Gets or sets the last run time of the action, as wall-clock time.
 	/// </summary>
+	/// <remarks>
+	/// For reporting only. Scheduling measures from <see cref="LastRunTimestamp"/>, because the wall
+	/// clock can be set back, and a last run that appears to lie in the future would hold the action
+	/// off for as long as the clock moved.
+	/// </remarks>
 	internal DateTimeOffset LastRunTime { get; set; } = DateTimeOffset.MinValue;
+
+	/// <summary>
+	/// Gets or sets the <see cref="Stopwatch"/> timestamp of the last run, or <see langword="null"/>
+	/// if the action has not run yet.
+	/// </summary>
+	internal long? LastRunTimestamp { get; set; }
 
 	/// <summary>
 	/// Gets the polling interval for checking the action's status and attempting to start the action.
@@ -263,26 +275,20 @@ public class IntervalAction
 				ActionTask = null;
 			}
 
-			if (ActionInterval >= TimeSpan.Zero && ActionTask is null && DateTimeOffset.Now - LastRunTime > ActionInterval)
+			if (ActionInterval >= TimeSpan.Zero && ActionTask is null && HasIntervalElapsed())
 			{
 				ActionTask = Task.Run(() =>
 				{
 					if (IntervalType == IntervalType.FromLastStart)
 					{
-						lock (Lock)
-						{
-							LastRunTime = DateTimeOffset.Now;
-						}
+						RecordRun();
 					}
 
 					Action();
 
 					if (IntervalType == IntervalType.FromLastCompletion)
 					{
-						lock (Lock)
-						{
-							LastRunTime = DateTimeOffset.Now;
-						}
+						RecordRun();
 					}
 				});
 
@@ -292,6 +298,34 @@ public class IntervalAction
 			return false;
 		}
 	}
+
+	/// <summary>
+	/// Reports whether <see cref="ActionInterval"/> has passed since the last run, measured on a
+	/// monotonic clock. Callers hold <see cref="Lock"/>.
+	/// </summary>
+	private bool HasIntervalElapsed() =>
+		LastRunTimestamp is not long lastRun || GetElapsedTime(lastRun) > ActionInterval;
+
+	/// <summary>
+	/// Records that the action has just run.
+	/// </summary>
+	private void RecordRun()
+	{
+		lock (Lock)
+		{
+			LastRunTime = DateTimeOffset.Now;
+			LastRunTimestamp = Stopwatch.GetTimestamp();
+		}
+	}
+
+	/// <summary>
+	/// Returns the time elapsed since a <see cref="Stopwatch"/> timestamp.
+	/// </summary>
+	/// <param name="startingTimestamp">A value from <see cref="Stopwatch.GetTimestamp"/>.</param>
+	/// <returns>The time elapsed since <paramref name="startingTimestamp"/>.</returns>
+	/// <remarks>Stopwatch.GetElapsedTime does this, but only from .NET 7.</remarks>
+	private static TimeSpan GetElapsedTime(long startingTimestamp) =>
+		TimeSpan.FromTicks((long)((Stopwatch.GetTimestamp() - startingTimestamp) * ((double)TimeSpan.TicksPerSecond / Stopwatch.Frequency)));
 
 	/// <summary>
 	/// Rethrows any exceptions that occurred during the polling task.
