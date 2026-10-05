@@ -486,6 +486,46 @@ public class IntervalActionTests
 		}
 	}
 
+	[TestMethod]
+	public async Task RethrowExceptionsReportsAnActionThatThrowsAfterStop()
+	{
+		// Arrange: the action blocks until released, so it is still running when Stop() is called
+		string exceptionMessage = "Thrown after stop";
+		using ManualResetEventSlim release = new();
+		using ManualResetEventSlim started = new();
+		IntervalActionOptions options = new()
+		{
+			PollingInterval = TimeSpan.FromMilliseconds(10),
+			ActionInterval = TimeSpan.FromHours(1),
+			Action = () =>
+			{
+				started.Set();
+				release.Wait();
+				throw new InvalidOperationException(exceptionMessage);
+			},
+			IntervalType = IntervalType.FromLastStart
+		};
+
+		IntervalAction intervalAction = IntervalAction.Start(options);
+		Assert.IsTrue(started.Wait(TimeSpan.FromSeconds(10)), "The action should start.");
+
+		// Act: stop, let the polling loop exit normally, and only then let the action throw, so no
+		// later tick is left to carry the exception to the polling task
+		intervalAction.Stop();
+		Task pollingTask = intervalAction.PollingTask;
+		Assert.AreSame(pollingTask, await Task.WhenAny(pollingTask, Task.Delay(TimeSpan.FromSeconds(10))).ConfigureAwait(false), "The polling loop should exit after Stop().");
+		Assert.IsFalse(pollingTask.IsFaulted, "The polling loop should exit normally.");
+
+		release.Set();
+		Task? actionTask = intervalAction.ActionTask;
+		Assert.IsNotNull(actionTask, "The action should still be running.");
+		Assert.AreSame(actionTask, await Task.WhenAny(actionTask, Task.Delay(TimeSpan.FromSeconds(10))).ConfigureAwait(false), "The action should finish once released.");
+
+		// Assert
+		InvalidOperationException exception = Assert.ThrowsExactly<InvalidOperationException>(intervalAction.RethrowExceptions);
+		Assert.AreEqual(exceptionMessage, exception.Message);
+	}
+
 	/// <summary>
 	/// Waits until the polling loop has ended, which for an action that throws is when the loop
 	/// has observed the fault and <see cref="IntervalAction.RethrowExceptions"/> has something to throw.
