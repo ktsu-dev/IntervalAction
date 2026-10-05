@@ -330,11 +330,31 @@ public class IntervalAction
 	/// <summary>
 	/// Rethrows any exceptions that occurred during the polling task.
 	/// </summary>
+	/// <remarks>
+	/// An action's exception normally reaches <see cref="PollingTask"/> on the tick after the action
+	/// faults. After <see cref="Stop"/> there is no later tick, so an action that was still running
+	/// when polling stopped, and then threw, would leave its exception on <see cref="ActionTask"/>
+	/// where nothing reads it. That is checked here too, so the usual shutdown sequence of
+	/// <see cref="Stop"/> then <see cref="RethrowExceptions"/> reports a failure from the final run.
+	/// A restart still discards such an exception, as it does a faulted polling loop.
+	/// </remarks>
 	public void RethrowExceptions()
 	{
-		if (PollingTask.Exception is not null)
+		Exception? exception = PollingTask.Exception?.GetBaseException();
+
+		if (exception is null)
 		{
-			ExceptionDispatchInfo.Capture(PollingTask.Exception.GetBaseException()).Throw();
+			lock (Lock)
+			{
+				exception = ActionTask is { IsFaulted: true } faultedAction
+					? faultedAction.Exception?.GetBaseException()
+					: null;
+			}
+		}
+
+		if (exception is not null)
+		{
+			ExceptionDispatchInfo.Capture(exception).Throw();
 		}
 	}
 }
