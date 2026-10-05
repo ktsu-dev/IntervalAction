@@ -353,7 +353,8 @@ public class IntervalActionTests
 		Assert.IsFalse(pollingTask.IsFaulted, "The polling loop should exit normally.");
 
 		release.Set();
-		Task actionTask = intervalAction.ActionTask!;
+		Task? actionTask = intervalAction.ActionTask;
+		Assert.IsNotNull(actionTask, "The action should still be running.");
 		Assert.AreSame(actionTask, await Task.WhenAny(actionTask, Task.Delay(TimeSpan.FromSeconds(10))).ConfigureAwait(false), "The action should finish once released.");
 
 		// Assert
