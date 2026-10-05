@@ -323,6 +323,170 @@ public class IntervalActionTests
 	}
 
 	[TestMethod]
+	public async Task AsyncActionRunsNeverOverlap()
+	{
+		// Arrange: each run awaits far longer than the interval between runs
+		int running = 0;
+		int maxRunning = 0;
+		int started = 0;
+		IntervalActionOptions options = new()
+		{
+			PollingInterval = TimeSpan.FromMilliseconds(10),
+			ActionInterval = TimeSpan.FromMilliseconds(20),
+			AsyncAction = async _ =>
+			{
+				int nowRunning = Interlocked.Increment(ref running);
+				Interlocked.Increment(ref started);
+				InterlockedMax(ref maxRunning, nowRunning);
+				await Task.Delay(200, CancellationToken.None).ConfigureAwait(false);
+				Interlocked.Decrement(ref running);
+			},
+			IntervalType = IntervalType.FromLastCompletion
+		};
+
+		// Act
+		IntervalAction intervalAction = IntervalAction.Start(options);
+		await Task.Delay(1000).ConfigureAwait(false);
+		intervalAction.Stop();
+
+		// Assert: a run lasts until its task completes, so the next one waits for it
+		Assert.IsGreaterThanOrEqualTo(2, Volatile.Read(ref started), "Expected the async action to run more than once.");
+		Assert.AreEqual(1, Volatile.Read(ref maxRunning), "Async action runs should never overlap.");
+
+		intervalAction.RethrowExceptions();
+	}
+
+	[TestMethod]
+	public async Task AsyncActionFromLastCompletionMeasuresFromWhenTheWorkFinished()
+	{
+		// Arrange: record when each run starts and when its awaited work finishes
+		TimeSpan actionInterval = TimeSpan.FromMilliseconds(100);
+		List<(long Start, long Finish)> runs = [];
+		Lock runsLock = new();
+		IntervalActionOptions options = new()
+		{
+			PollingInterval = TimeSpan.FromMilliseconds(10),
+			ActionInterval = actionInterval,
+			AsyncAction = async _ =>
+			{
+				long start = System.Diagnostics.Stopwatch.GetTimestamp();
+				await Task.Delay(150, CancellationToken.None).ConfigureAwait(false);
+				long finish = System.Diagnostics.Stopwatch.GetTimestamp();
+				lock (runsLock)
+				{
+					runs.Add((start, finish));
+				}
+			},
+			IntervalType = IntervalType.FromLastCompletion
+		};
+
+		// Act
+		IntervalAction intervalAction = IntervalAction.Start(options);
+		await Task.Delay(1200).ConfigureAwait(false);
+		intervalAction.Stop();
+		intervalAction.RethrowExceptions();
+
+		// Assert: each run starts at least an interval after the previous one's work finished
+		(long Start, long Finish)[] snapshot;
+		lock (runsLock)
+		{
+			snapshot = [.. runs];
+		}
+
+		Assert.IsGreaterThanOrEqualTo(2, snapshot.Length, "Expected at least two completed runs.");
+		for (int i = 1; i < snapshot.Length; i++)
+		{
+			TimeSpan gap = TimeSpan.FromTicks((long)((snapshot[i].Start - snapshot[i - 1].Finish) * ((double)TimeSpan.TicksPerSecond / System.Diagnostics.Stopwatch.Frequency)));
+			Assert.IsGreaterThanOrEqualTo(actionInterval, gap, $"Run {i} started {gap.TotalMilliseconds:F0} ms after the previous run finished.");
+		}
+	}
+
+	[TestMethod]
+	public async Task AsyncActionExceptionAfterAwaitIsRethrown()
+	{
+		// Arrange
+		string exceptionMessage = "Thrown after an await";
+		IntervalActionOptions options = new()
+		{
+			PollingInterval = TimeSpan.FromMilliseconds(10),
+			ActionInterval = TimeSpan.Zero,
+			AsyncAction = async _ =>
+			{
+				await Task.Delay(20, CancellationToken.None).ConfigureAwait(false);
+				throw new InvalidOperationException(exceptionMessage);
+			},
+			IntervalType = IntervalType.FromLastStart
+		};
+
+		// Act
+		IntervalAction intervalAction = IntervalAction.Start(options);
+		await WaitForPollingToFaultAsync(intervalAction).ConfigureAwait(false);
+
+		// Assert: the exception reaches RethrowExceptions instead of the thread pool
+		InvalidOperationException exception = Assert.ThrowsExactly<InvalidOperationException>(intervalAction.RethrowExceptions);
+		Assert.AreEqual(exceptionMessage, exception.Message);
+		intervalAction.Stop();
+	}
+
+	[TestMethod]
+	public async Task StopCancelsTheAsyncActionToken()
+	{
+		// Arrange: the action waits on its token for far longer than the test
+		using ManualResetEventSlim started = new();
+		IntervalActionOptions options = new()
+		{
+			PollingInterval = TimeSpan.FromMilliseconds(10),
+			ActionInterval = TimeSpan.FromHours(1),
+			AsyncAction = async cancellationToken =>
+			{
+				started.Set();
+				await Task.Delay(TimeSpan.FromHours(1), cancellationToken).ConfigureAwait(false);
+			},
+			IntervalType = IntervalType.FromLastCompletion
+		};
+
+		IntervalAction intervalAction = IntervalAction.Start(options);
+		Assert.IsTrue(started.Wait(TimeSpan.FromSeconds(10)), "The action should start.");
+		Task? actionTask = intervalAction.ActionTask;
+		Assert.IsNotNull(actionTask, "The action should still be running.");
+
+		// Act
+		intervalAction.Stop();
+
+		// Assert: the run ends promptly, and giving up on cancellation is not reported as a failure
+		Assert.AreSame(actionTask, await Task.WhenAny(actionTask, Task.Delay(TimeSpan.FromSeconds(10))).ConfigureAwait(false), "Stop should cancel the running async action.");
+		Assert.IsFalse(actionTask.IsFaulted, "A run that ends because Stop cancelled it should not fault.");
+		intervalAction.RethrowExceptions();
+	}
+
+	[TestMethod]
+	public void StartThrowsWhenBothActionAndAsyncActionAreSet()
+	{
+		IntervalActionOptions options = new()
+		{
+			Action = () => { },
+			AsyncAction = _ => Task.CompletedTask,
+		};
+
+		_ = Assert.ThrowsExactly<ArgumentException>(() => IntervalAction.Start(options));
+	}
+
+	private static void InterlockedMax(ref int target, int value)
+	{
+		int current = Volatile.Read(ref target);
+		while (value > current)
+		{
+			int seen = Interlocked.CompareExchange(ref target, value, current);
+			if (seen == current)
+			{
+				return;
+			}
+
+			current = seen;
+		}
+	}
+
+	[TestMethod]
 	public async Task RethrowExceptionsReportsAnActionThatThrowsAfterStop()
 	{
 		// Arrange: the action blocks until released, so it is still running when Stop() is called
