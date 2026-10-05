@@ -482,7 +482,9 @@ public class IntervalActionTests
 		};
 
 		IntervalAction intervalAction = IntervalAction.Start(options);
-		Thread.Sleep(100);
+
+		// Once the first run has finished, the loop is asleep in its delay
+		Assert.IsTrue(SpinWait.SpinUntil(() => intervalAction.ActionTask is { IsCompleted: true }, TimeSpan.FromSeconds(10)), "The first run should finish.");
 
 		// Act: the synchronous form blocks its caller, typically a UI thread, for as long as the restart takes
 		intervalAction.Stop();

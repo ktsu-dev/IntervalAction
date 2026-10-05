@@ -201,7 +201,7 @@ public class IntervalAction
 	/// <summary>
 	/// Restarts the polling of the action.
 	/// </summary>
-	public void Restart() => RestartAsync().Wait();
+	public void Restart() => RestartAsync().Wait(CancellationToken.None);
 
 	/// <summary>
 	/// Asynchronously restarts the polling of the action.
@@ -306,7 +306,7 @@ public class IntervalAction
 
 				cancellation.Dispose();
 			}
-		});
+		}, CancellationToken.None);
 	}
 
 	/// <summary>
@@ -347,7 +347,7 @@ public class IntervalAction
 					{
 						RecordRun();
 					}
-				});
+				}, CancellationToken.None);
 
 				return true;
 			}
