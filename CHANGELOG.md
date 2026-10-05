@@ -1,6 +1,15 @@
-## v1.4.5
+## v1.4.7-pre.1 (prerelease)
 
-No significant changes detected since v1.4.5.
+Changes since v1.4.6:
+
+- Bump Polyfill from 11.4.1 to 11.4.3 ([@dependabot[bot]](https://github.com/dependabot[bot]))
+
+## v1.4.6 (patch)
+
+Changes since v1.4.5:
+
+- Assert the running action task is present instead of null-forgiving it in the test ([@Claude](https://github.com/Claude))
+- Report an action that throws after Stop() from RethrowExceptions [patch] ([@Claude](https://github.com/Claude))
 
 ## v1.4.5 (patch)
 

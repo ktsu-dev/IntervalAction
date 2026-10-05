@@ -56,6 +56,22 @@ public class IntervalAction
 	private Action Action { get; init; } = null!;
 
 	/// <summary>
+	/// Gets the asynchronous action to be executed at each interval in place of <see cref="Action"/>,
+	/// or <see langword="null"/> if a synchronous action was given.
+	/// </summary>
+	private Func<CancellationToken, Task>? AsyncAction { get; init; }
+
+	/// <summary>
+	/// Gets or sets the cancellation source handed to the running <see cref="AsyncAction"/>, which
+	/// <see cref="Stop"/> cancels, or <see langword="null"/> when no asynchronous run is in flight.
+	/// </summary>
+	/// <remarks>
+	/// Only read, cancelled or replaced while holding <see cref="Lock"/>. A run takes it out of this
+	/// property before disposing it, so a cancel never meets a disposed source.
+	/// </remarks>
+	private CancellationTokenSource? ActionCancellation { get; set; }
+
+	/// <summary>
 	/// Gets the interval at which the action should be executed.
 	/// </summary>
 	private TimeSpan ActionInterval { get; init; }
@@ -133,7 +149,13 @@ public class IntervalAction
 	/// </summary>
 	/// <param name="intervalActionOptions">The options for configuring the interval action.</param>
 	/// <returns>A new instance of <see cref="IntervalAction"/>.</returns>
-	/// <exception cref="ArgumentNullException">Thrown if <paramref name="intervalActionOptions"/> or its <see cref="IntervalActionOptions.Action"/> is null.</exception>
+	/// <exception cref="ArgumentNullException">
+	/// Thrown if <paramref name="intervalActionOptions"/> is null, or if its <see cref="IntervalActionOptions.Action"/>
+	/// is null and no <see cref="IntervalActionOptions.AsyncAction"/> is given.
+	/// </exception>
+	/// <exception cref="ArgumentException">
+	/// Thrown if both <see cref="IntervalActionOptions.Action"/> and <see cref="IntervalActionOptions.AsyncAction"/> are set.
+	/// </exception>
 	/// <exception cref="ArgumentOutOfRangeException">
 	/// Thrown if <see cref="IntervalActionOptions.PollingInterval"/> is zero or negative, which includes
 	/// <see cref="Timeout.InfiniteTimeSpan"/>.
@@ -141,7 +163,17 @@ public class IntervalAction
 	public static IntervalAction Start(IntervalActionOptions intervalActionOptions)
 	{
 		Ensure.NotNull(intervalActionOptions);
-		Ensure.NotNull(intervalActionOptions.Action);
+
+		if (intervalActionOptions.AsyncAction is null)
+		{
+			Ensure.NotNull(intervalActionOptions.Action);
+		}
+		else if (intervalActionOptions.Action is not null && !ReferenceEquals(intervalActionOptions.Action, IntervalActionOptions.NoAction))
+		{
+			throw new ArgumentException(
+				$"Set either {nameof(IntervalActionOptions.Action)} or {nameof(IntervalActionOptions.AsyncAction)}, not both.",
+				nameof(intervalActionOptions));
+		}
 
 		// Rejected here rather than left to Task.Delay in the polling loop: a negative interval would
 		// fault the loop after the first run, an infinite one would leave Restart() and Stop() waiting
@@ -157,7 +189,8 @@ public class IntervalAction
 		IntervalAction intervalAction = new()
 		{
 			PollingInterval = intervalActionOptions.PollingInterval,
-			Action = intervalActionOptions.Action,
+			Action = intervalActionOptions.Action ?? IntervalActionOptions.NoAction,
+			AsyncAction = intervalActionOptions.AsyncAction,
 			ActionInterval = intervalActionOptions.ActionInterval,
 			IntervalType = intervalActionOptions.IntervalType
 		};
@@ -176,10 +209,23 @@ public class IntervalAction
 	/// </remarks>
 	public void Stop()
 	{
+		CancellationTokenSource? actionCancellation;
+
 		lock (Lock)
 		{
 			StopGeneration++;
 			EndPolling();
+			actionCancellation = ActionCancellation;
+		}
+
+		// Cancelled outside the lock, because cancelling runs the action's own token callbacks
+		try
+		{
+			actionCancellation?.Cancel();
+		}
+		catch (ObjectDisposedException)
+		{
+			// The run finished and disposed its source after the lock was released: nothing to cancel
 		}
 	}
 
@@ -334,6 +380,14 @@ public class IntervalAction
 
 			if (ActionInterval >= TimeSpan.Zero && ActionTask is null && HasIntervalElapsed())
 			{
+				if (AsyncAction is { } asyncAction)
+				{
+					CancellationTokenSource cancellation = new();
+					ActionCancellation = cancellation;
+					ActionTask = Task.Run(() => RunAsyncAction(asyncAction, cancellation), CancellationToken.None);
+					return true;
+				}
+
 				ActionTask = Task.Run(() =>
 				{
 					if (IntervalType == IntervalType.FromLastStart)
@@ -353,6 +407,50 @@ public class IntervalAction
 			}
 
 			return false;
+		}
+	}
+
+	/// <summary>
+	/// Runs <see cref="AsyncAction"/> once, so that the returned task completes when its work does.
+	/// </summary>
+	/// <param name="asyncAction">The action to run.</param>
+	/// <param name="cancellation">The source whose token the action receives, and which this run disposes.</param>
+	/// <returns>A task that completes, or faults, when the action does.</returns>
+	private async Task RunAsyncAction(Func<CancellationToken, Task> asyncAction, CancellationTokenSource cancellation)
+	{
+		try
+		{
+			if (IntervalType == IntervalType.FromLastStart)
+			{
+				RecordRun();
+			}
+
+			try
+			{
+				await asyncAction(cancellation.Token).ConfigureAwait(false);
+			}
+			catch (OperationCanceledException) when (cancellation.IsCancellationRequested)
+			{
+				// Stop() asked the action to give up, and it did: that is how a run ends after a stop,
+				// not a failure to report
+			}
+
+			if (IntervalType == IntervalType.FromLastCompletion)
+			{
+				RecordRun();
+			}
+		}
+		finally
+		{
+			lock (Lock)
+			{
+				if (ActionCancellation == cancellation)
+				{
+					ActionCancellation = null;
+				}
+			}
+
+			cancellation.Dispose();
 		}
 	}
 
@@ -387,11 +485,31 @@ public class IntervalAction
 	/// <summary>
 	/// Rethrows any exceptions that occurred during the polling task.
 	/// </summary>
+	/// <remarks>
+	/// An action's exception normally reaches <see cref="PollingTask"/> on the tick after the action
+	/// faults. After <see cref="Stop"/> there is no later tick, so an action that was still running
+	/// when polling stopped, and then threw, would leave its exception on <see cref="ActionTask"/>
+	/// where nothing reads it. That is checked here too, so the usual shutdown sequence of
+	/// <see cref="Stop"/> then <see cref="RethrowExceptions"/> reports a failure from the final run.
+	/// A restart still discards such an exception, as it does a faulted polling loop.
+	/// </remarks>
 	public void RethrowExceptions()
 	{
-		if (PollingTask.Exception is not null)
+		Exception? exception = PollingTask.Exception?.GetBaseException();
+
+		if (exception is null)
 		{
-			ExceptionDispatchInfo.Capture(PollingTask.Exception.GetBaseException()).Throw();
+			lock (Lock)
+			{
+				exception = ActionTask is { IsFaulted: true } faultedAction
+					? faultedAction.Exception?.GetBaseException()
+					: null;
+			}
+		}
+
+		if (exception is not null)
+		{
+			ExceptionDispatchInfo.Capture(exception).Throw();
 		}
 	}
 }
