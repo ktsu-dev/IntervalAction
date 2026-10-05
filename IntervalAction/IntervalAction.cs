@@ -218,7 +218,7 @@ public class IntervalAction
 	/// <summary>
 	/// Restarts the polling of the action.
 	/// </summary>
-	public void Restart() => RestartAsync().Wait();
+	public void Restart() => RestartAsync().Wait(CancellationToken.None);
 
 	/// <summary>
 	/// Asynchronously restarts the polling of the action.
@@ -288,14 +288,14 @@ public class IntervalAction
 			while (shouldPoll)
 			{
 				TryRun();
-				await Task.Delay(PollingInterval).ConfigureAwait(false);
+				await Task.Delay(PollingInterval, CancellationToken.None).ConfigureAwait(false);
 
 				lock (Lock)
 				{
 					shouldPoll = ShouldPoll;
 				}
 			}
-		});
+		}, CancellationToken.None);
 	}
 
 	/// <summary>
@@ -327,7 +327,7 @@ public class IntervalAction
 				{
 					CancellationTokenSource cancellation = new();
 					ActionCancellation = cancellation;
-					ActionTask = Task.Run(() => RunAsyncAction(asyncAction, cancellation));
+					ActionTask = Task.Run(() => RunAsyncAction(asyncAction, cancellation), CancellationToken.None);
 					return true;
 				}
 
@@ -344,7 +344,7 @@ public class IntervalAction
 					{
 						RecordRun();
 					}
-				});
+				}, CancellationToken.None);
 
 				return true;
 			}
