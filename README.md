@@ -99,12 +99,14 @@ using ktsu.IntervalAction;
 
 var intervalAction = IntervalAction.Start(new()
 {
-    Action = async () =>
+    // AsyncAction, not Action: an async lambda assigned to Action becomes async void, which
+    // returns at its first await, so runs would overlap and exceptions would crash the process
+    AsyncAction = async cancellationToken =>
     {
         Console.WriteLine("Starting long-running task...");
         
-        // Simulate a long-running task
-        await Task.Delay(5000);
+        // Simulate a long-running task; the token is cancelled by Stop()
+        await Task.Delay(5000, cancellationToken);
         
         Console.WriteLine("Long-running task completed");
     },
@@ -171,7 +173,8 @@ Configuration options for an interval action.
 
 | Name | Type | Description |
 |------|------|-------------|
-| `Action` | `Action` | The action to execute at intervals (required) |
+| `Action` | `Action` | The action to execute at intervals (set this or `AsyncAction`) |
+| `AsyncAction` | `Func<CancellationToken, Task>` | An asynchronous action to execute at intervals; a run lasts until its task completes, and the token is cancelled by `Stop()` (set this or `Action`) |
 | `ActionInterval` | `TimeSpan` | The interval between executions (required) |
 | `PollingInterval` | `TimeSpan` | How frequently to check if action should run (optional, default 1 second) |
 | `IntervalType` | `IntervalType` | Determines how intervals are measured (optional, default FromLastCompletion) |
