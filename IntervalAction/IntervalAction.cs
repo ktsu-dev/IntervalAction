@@ -108,6 +108,20 @@ public class IntervalAction
 	private long StopGeneration { get; set; }
 
 	/// <summary>
+	/// Gets or sets the cancellation source of the running polling loop, or <see langword="null"/>
+	/// when no loop is running.
+	/// </summary>
+	/// <remarks>
+	/// The loop spends nearly all its time in <c>Task.Delay(PollingInterval)</c>. Clearing
+	/// <see cref="ShouldPoll"/> alone leaves it there until the delay runs out, so a restart, which
+	/// waits for the old loop to exit, could block for up to a whole polling interval. Cancelling
+	/// this ends the delay at once. Only read, cancelled or replaced while holding <see cref="Lock"/>,
+	/// and the loop takes it out of this property before disposing it, so a cancel never meets a
+	/// disposed source.
+	/// </remarks>
+	private CancellationTokenSource? PollingCancellation { get; set; }
+
+	/// <summary>
 	/// Waits for a task to finish and discards however it finished.
 	/// </summary>
 	/// <param name="task">The task to wait on.</param>
@@ -200,7 +214,7 @@ public class IntervalAction
 		lock (Lock)
 		{
 			StopGeneration++;
-			ShouldPoll = false;
+			EndPolling();
 			actionCancellation = ActionCancellation;
 		}
 
@@ -213,6 +227,21 @@ public class IntervalAction
 		{
 			// The run finished and disposed its source after the lock was released: nothing to cancel
 		}
+	}
+
+	/// <summary>
+	/// Tells the running polling loop to exit, cutting short the delay it is waiting in.
+	/// Callers hold <see cref="Lock"/>.
+	/// </summary>
+	/// <remarks>
+	/// Cancelling is synchronous on purpose: <c>CancelAsync</c> cannot be awaited under a lock and is
+	/// not available on netstandard. The only registration on the token is the loop's delay, so the
+	/// cancel does no more than complete that delay.
+	/// </remarks>
+	private void EndPolling()
+	{
+		ShouldPoll = false;
+		PollingCancellation?.Cancel();
 	}
 
 	/// <summary>
@@ -247,23 +276,27 @@ public class IntervalAction
 
 		// Wait for the old loop whether or not it is still meant to be polling. After Stop() it can
 		// still be inside its delay, and would see ShouldPoll set again below and keep running
-		// alongside the new loop, unreferenced. This clears ShouldPoll directly rather than calling
+		// alongside the new loop, unreferenced. This ends polling directly rather than calling
 		// Stop(), which would count as a caller's stop and cancel this very restart.
 		lock (Lock)
 		{
-			ShouldPoll = false;
+			EndPolling();
 		}
 
 		await WaitAndDiscardOutcomeAsync(PollingTask).ConfigureAwait(false);
+
+		CancellationTokenSource cancellation = new();
 
 		lock (Lock)
 		{
 			if (StopGeneration != stopGeneration)
 			{
+				cancellation.Dispose();
 				return;
 			}
 
 			ShouldPoll = true;
+			PollingCancellation = cancellation;
 
 			// A faulted action task is left in place by TryRun, which throws rather than clearing it.
 			// The new loop's first tick would observe it again and fault too, so the restart would
@@ -278,22 +311,46 @@ public class IntervalAction
 
 		PollingTask = Task.Run(async () =>
 		{
-			bool shouldPoll;
-
-			lock (Lock)
+			try
 			{
-				shouldPoll = ShouldPoll;
-			}
-
-			while (shouldPoll)
-			{
-				TryRun();
-				await Task.Delay(PollingInterval, CancellationToken.None).ConfigureAwait(false);
+				bool shouldPoll;
 
 				lock (Lock)
 				{
 					shouldPoll = ShouldPoll;
 				}
+
+				while (shouldPoll)
+				{
+					TryRun();
+
+					try
+					{
+						await Task.Delay(PollingInterval, cancellation.Token).ConfigureAwait(false);
+					}
+					catch (OperationCanceledException) when (cancellation.IsCancellationRequested)
+					{
+						// Stopped or restarted mid-delay: a normal exit, not a fault
+						break;
+					}
+
+					lock (Lock)
+					{
+						shouldPoll = ShouldPoll;
+					}
+				}
+			}
+			finally
+			{
+				lock (Lock)
+				{
+					if (PollingCancellation == cancellation)
+					{
+						PollingCancellation = null;
+					}
+				}
+
+				cancellation.Dispose();
 			}
 		}, CancellationToken.None);
 	}

@@ -644,6 +644,67 @@ public class IntervalActionTests
 	}
 
 	[TestMethod]
+	public async Task RestartAsyncDoesNotWaitOutThePollingInterval()
+	{
+		// Arrange: a polling interval far longer than a restart should take
+		IntervalActionOptions options = new()
+		{
+			PollingInterval = TimeSpan.FromSeconds(5),
+			ActionInterval = TimeSpan.Zero,
+			Action = () => { },
+			IntervalType = IntervalType.FromLastStart
+		};
+
+		IntervalAction intervalAction = IntervalAction.Start(options);
+		await Task.Delay(100).ConfigureAwait(false);
+		Task oldPollingTask = intervalAction.PollingTask;
+
+		// Act: the old loop is asleep in its delay, which the restart used to wait out
+		System.Diagnostics.Stopwatch stopwatch = System.Diagnostics.Stopwatch.StartNew();
+		await intervalAction.RestartAsync().ConfigureAwait(false);
+		stopwatch.Stop();
+
+		// Assert
+		Assert.IsLessThan(TimeSpan.FromSeconds(1), stopwatch.Elapsed, $"RestartAsync took {stopwatch.Elapsed.TotalMilliseconds:F0} ms.");
+		Assert.IsTrue(oldPollingTask.IsCompleted, "The old loop should have exited before the restart completed.");
+		Assert.IsFalse(oldPollingTask.IsFaulted, "Cancelling the old loop's delay should end it normally, not fault it.");
+
+		intervalAction.Stop();
+		intervalAction.RethrowExceptions();
+	}
+
+	[TestMethod]
+	public void RestartDoesNotWaitOutThePollingInterval()
+	{
+		// Arrange
+		IntervalActionOptions options = new()
+		{
+			PollingInterval = TimeSpan.FromSeconds(5),
+			ActionInterval = TimeSpan.Zero,
+			Action = () => { },
+			IntervalType = IntervalType.FromLastStart
+		};
+
+		IntervalAction intervalAction = IntervalAction.Start(options);
+
+		// Once the first run has finished, the loop is asleep in its delay
+		Assert.IsTrue(SpinWait.SpinUntil(() => intervalAction.ActionTask is { IsCompleted: true }, TimeSpan.FromSeconds(10)), "The first run should finish.");
+
+		// Act: the synchronous form blocks its caller, typically a UI thread, for as long as the restart takes
+		intervalAction.Stop();
+		System.Diagnostics.Stopwatch stopwatch = System.Diagnostics.Stopwatch.StartNew();
+		intervalAction.Restart();
+		stopwatch.Stop();
+
+		// Assert
+		Assert.IsLessThan(TimeSpan.FromSeconds(1), stopwatch.Elapsed, $"Restart took {stopwatch.Elapsed.TotalMilliseconds:F0} ms.");
+
+		intervalAction.Stop();
+		Assert.IsTrue(intervalAction.PollingTask.Wait(TimeSpan.FromSeconds(1)), "Stop should end the loop without waiting out its delay.");
+		intervalAction.RethrowExceptions();
+	}
+
+	[TestMethod]
 	public async Task ZeroIntervalExecutesQuickly()
 	{
 		int counter = 0;
