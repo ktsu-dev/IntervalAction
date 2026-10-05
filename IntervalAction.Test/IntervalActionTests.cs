@@ -447,7 +447,8 @@ public class IntervalActionTests
 
 		IntervalAction intervalAction = IntervalAction.Start(options);
 		Assert.IsTrue(started.Wait(TimeSpan.FromSeconds(10)), "The action should start.");
-		Task actionTask = intervalAction.ActionTask!;
+		Task? actionTask = intervalAction.ActionTask;
+		Assert.IsNotNull(actionTask, "The action should still be running.");
 
 		// Act
 		intervalAction.Stop();
