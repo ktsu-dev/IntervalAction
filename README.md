@@ -176,7 +176,7 @@ Configuration options for an interval action.
 | `Action` | `Action` | The action to execute at intervals (set this or `AsyncAction`) |
 | `AsyncAction` | `Func<CancellationToken, Task>` | An asynchronous action to execute at intervals; a run lasts until its task completes, and the token is cancelled by `Stop()` (set this or `Action`) |
 | `ActionInterval` | `TimeSpan` | The interval between executions (required) |
-| `PollingInterval` | `TimeSpan` | How frequently to check if action should run (optional, default 1 second) |
+| `PollingInterval` | `TimeSpan` | How frequently to check if action should run (optional, default 1 second; must be between 1 ms and `int.MaxValue` ms, about 24.8 days) |
 | `IntervalType` | `IntervalType` | Determines how intervals are measured (optional, default FromLastCompletion) |
 
 ### `IntervalType` Enum

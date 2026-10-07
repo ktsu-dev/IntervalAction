@@ -1,4 +1,4 @@
-// Copyright (c) 2023-2026 ktsu-dev contributors
+﻿// Copyright (c) 2023-2026 ktsu-dev contributors
 
 [assembly: DoNotParallelize]
 
@@ -130,6 +130,39 @@ public class IntervalActionTests
 			IntervalType = IntervalType.FromLastCompletion
 		};
 		Assert.ThrowsExactly<ArgumentOutOfRangeException>(() => IntervalAction.Start(options));
+	}
+
+	[TestMethod]
+	[DataRow(1L)] // Task.Delay truncates this to zero and spins a core
+	[DataRow(5_000L)] // 500 microseconds
+	[DataRow(9_999L)] // just under a millisecond
+	[DataRow(21_474_836_480_000L)] // one millisecond over int.MaxValue
+	[DataRow(51_840_000_000_000L)] // 60 days, which Task.Delay rejects after the first run
+	public void StartPollingIntervalOutsideTaskDelayRangeThrows(long pollingIntervalTicks)
+	{
+		IntervalActionOptions options = new()
+		{
+			PollingInterval = TimeSpan.FromTicks(pollingIntervalTicks),
+			ActionInterval = TimeSpan.FromMilliseconds(10),
+			Action = () => { },
+			IntervalType = IntervalType.FromLastCompletion
+		};
+		Assert.ThrowsExactly<ArgumentOutOfRangeException>(() => IntervalAction.Start(options));
+	}
+
+	[TestMethod]
+	[DataRow(10_000L)] // exactly one millisecond
+	[DataRow(21_474_836_470_000L)] // exactly int.MaxValue milliseconds
+	public void StartPollingIntervalAtTaskDelayLimitsIsAccepted(long pollingIntervalTicks)
+	{
+		IntervalAction intervalAction = IntervalAction.Start(new()
+		{
+			PollingInterval = TimeSpan.FromTicks(pollingIntervalTicks),
+			ActionInterval = TimeSpan.FromHours(1),
+			Action = () => { },
+			IntervalType = IntervalType.FromLastCompletion
+		});
+		intervalAction.Stop();
 	}
 
 	[TestMethod]

@@ -1,4 +1,4 @@
-// Copyright (c) 2023-2026 ktsu-dev contributors
+﻿// Copyright (c) 2023-2026 ktsu-dev contributors
 
 namespace ktsu.IntervalAction;
 
@@ -29,6 +29,16 @@ public class IntervalAction
 	/// if the action has not run yet.
 	/// </summary>
 	internal long? LastRunTimestamp { get; set; }
+
+	/// <summary>
+	/// The shortest polling interval <see cref="Task.Delay(TimeSpan)"/> waits out rather than truncating to zero.
+	/// </summary>
+	private static readonly TimeSpan MinimumPollingInterval = TimeSpan.FromMilliseconds(1);
+
+	/// <summary>
+	/// The longest polling interval <see cref="Task.Delay(TimeSpan)"/> accepts on every target framework.
+	/// </summary>
+	private static readonly TimeSpan MaximumPollingInterval = TimeSpan.FromMilliseconds(int.MaxValue);
 
 	/// <summary>
 	/// Gets the polling interval for checking the action's status and attempting to start the action.
@@ -157,8 +167,9 @@ public class IntervalAction
 	/// Thrown if both <see cref="IntervalActionOptions.Action"/> and <see cref="IntervalActionOptions.AsyncAction"/> are set.
 	/// </exception>
 	/// <exception cref="ArgumentOutOfRangeException">
-	/// Thrown if <see cref="IntervalActionOptions.PollingInterval"/> is zero or negative, which includes
-	/// <see cref="Timeout.InfiniteTimeSpan"/>.
+	/// Thrown if <see cref="IntervalActionOptions.PollingInterval"/> is shorter than one millisecond, which
+	/// includes zero, negative values and <see cref="Timeout.InfiniteTimeSpan"/>, or longer than
+	/// <see cref="int.MaxValue"/> milliseconds (about 24.8 days).
 	/// </exception>
 	public static IntervalAction Start(IntervalActionOptions intervalActionOptions)
 	{
@@ -175,15 +186,19 @@ public class IntervalAction
 				nameof(intervalActionOptions));
 		}
 
-		// Rejected here rather than left to Task.Delay in the polling loop: a negative interval would
-		// fault the loop after the first run, an infinite one would leave Restart() and Stop() waiting
-		// on a delay that never ends, and zero would spin a core.
-		if (intervalActionOptions.PollingInterval <= TimeSpan.Zero)
+		// Rejected here rather than left to Task.Delay in the polling loop, which can only honor whole
+		// milliseconds up to int.MaxValue on every target. A negative interval would fault the loop
+		// after the first run, and an infinite one would leave Restart() and Stop() waiting on a delay
+		// that never ends. Anything under a millisecond, zero included, truncates to Task.Delay(0),
+		// which completes synchronously and spins a core. Anything over int.MaxValue milliseconds lets
+		// the action run once and then faults the loop.
+		if (intervalActionOptions.PollingInterval < MinimumPollingInterval
+			|| intervalActionOptions.PollingInterval > MaximumPollingInterval)
 		{
 			throw new ArgumentOutOfRangeException(
 				nameof(intervalActionOptions),
 				intervalActionOptions.PollingInterval,
-				$"{nameof(IntervalActionOptions.PollingInterval)} must be greater than zero.");
+				$"{nameof(IntervalActionOptions.PollingInterval)} must be between {MinimumPollingInterval} and {MaximumPollingInterval}.");
 		}
 
 		IntervalAction intervalAction = new()
