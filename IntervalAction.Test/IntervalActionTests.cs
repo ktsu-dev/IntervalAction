@@ -582,6 +582,55 @@ public class IntervalActionTests
 		Assert.AreSame(pollingTask, finished, "The polling loop should fault after the action throws.");
 	}
 
+	[TestMethod]
+	public async Task RethrowExceptionsReportsActionThrowingTaskCanceledException()
+	{
+		// Arrange: HttpClient reports a timeout as TaskCanceledException, which is an
+		// OperationCanceledException, and an async method that ends with one is Canceled, not Faulted
+		IntervalActionOptions options = new()
+		{
+			PollingInterval = TimeSpan.FromMilliseconds(10),
+			ActionInterval = TimeSpan.Zero,
+			Action = () => throw new TaskCanceledException("http timeout"),
+			IntervalType = IntervalType.FromLastStart
+		};
+		IntervalAction intervalAction = IntervalAction.Start(options);
+		await WaitForPollingToFaultAsync(intervalAction).ConfigureAwait(false);
+
+		// Act
+		TaskCanceledException exception = Assert.ThrowsExactly<TaskCanceledException>(intervalAction.RethrowExceptions);
+		intervalAction.Stop();
+
+		// Assert
+		Assert.AreEqual("http timeout", exception.Message);
+	}
+
+	[TestMethod]
+	public async Task RethrowExceptionsReportsAsyncActionThrowingTaskCanceledException()
+	{
+		// Arrange: the action's own timeout, not a cancellation that Stop() asked for
+		IntervalActionOptions options = new()
+		{
+			PollingInterval = TimeSpan.FromMilliseconds(10),
+			ActionInterval = TimeSpan.Zero,
+			AsyncAction = async _ =>
+			{
+				await Task.Yield();
+				throw new TaskCanceledException("http timeout");
+			},
+			IntervalType = IntervalType.FromLastStart
+		};
+		IntervalAction intervalAction = IntervalAction.Start(options);
+		await WaitForPollingToFaultAsync(intervalAction).ConfigureAwait(false);
+
+		// Act
+		TaskCanceledException exception = Assert.ThrowsExactly<TaskCanceledException>(intervalAction.RethrowExceptions);
+		intervalAction.Stop();
+
+		// Assert
+		Assert.AreEqual("http timeout", exception.Message);
+	}
+
 	private static void ThrowFromNamedMethod() => throw new InvalidOperationException("Thrown from a named method");
 
 	[TestMethod]
