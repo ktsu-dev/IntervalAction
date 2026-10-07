@@ -162,6 +162,9 @@ public class IntervalActionTests
 			Action = () => { },
 			IntervalType = IntervalType.FromLastCompletion
 		});
+
+		Assert.IsTrue(intervalAction.ShouldPoll, "An interval Task.Delay can honor must start polling.");
+		Assert.IsFalse(intervalAction.PollingTask.IsFaulted, "An interval Task.Delay can honor must not fault the polling loop.");
 		intervalAction.Stop();
 	}
 
