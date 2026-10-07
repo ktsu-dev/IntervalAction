@@ -1,6 +1,9 @@
-## v1.5.1
+## v1.5.2 (patch)
 
-No significant changes detected since v1.5.1.
+Changes since v1.5.1:
+
+- Assert that an interval at Task.Delay's limits starts polling without faulting ([@Claude](https://github.com/Claude))
+- Reject polling intervals Task.Delay cannot honor [patch] ([@Claude](https://github.com/Claude))
 
 ## v1.5.1 (patch)
 
