@@ -1,6 +1,4 @@
-## v1.5.3 (patch)
+## v1.5.3
 
-Changes since v1.5.2:
-
-- Report an action that throws OperationCanceledException as a failure [patch] ([@Claude](https://github.com/Claude))
+No significant changes detected since v1.5.3.
 
