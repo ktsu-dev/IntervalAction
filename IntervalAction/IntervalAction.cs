@@ -384,10 +384,10 @@ public class IntervalAction
 		{
 			if (ActionTask?.IsCompleted ?? false)
 			{
-				if (ActionTask.Exception is not null)
+				if (GetActionFailure(ActionTask) is { } failure)
 				{
 					// Rethrow through ExceptionDispatchInfo so the trace still shows where the action failed
-					ExceptionDispatchInfo.Capture(ActionTask.Exception.GetBaseException()).Throw();
+					ExceptionDispatchInfo.Capture(failure).Throw();
 				}
 
 				ActionTask = null;
@@ -470,6 +470,40 @@ public class IntervalAction
 	}
 
 	/// <summary>
+	/// Returns the exception a finished action run failed with, or <see langword="null"/> if it succeeded.
+	/// </summary>
+	/// <param name="actionTask">A completed <see cref="ActionTask"/>.</param>
+	/// <returns>The exception the action threw, or <see langword="null"/>.</returns>
+	/// <remarks>
+	/// An action that throws an <see cref="OperationCanceledException"/>, such as the
+	/// <see cref="TaskCanceledException"/> HttpClient reports a timeout with, leaves an asynchronous
+	/// run Canceled rather than Faulted, with no <see cref="Task.Exception"/>. Nothing cancels a run on
+	/// purpose: a run that <see cref="Stop"/> cancels ends normally. So a Canceled run is a failure,
+	/// and awaiting it recovers the exception the action threw.
+	/// </remarks>
+	private static Exception? GetActionFailure(Task actionTask)
+	{
+		if (actionTask.IsFaulted)
+		{
+			return actionTask.Exception?.GetBaseException();
+		}
+
+		if (actionTask.IsCanceled)
+		{
+			try
+			{
+				actionTask.GetAwaiter().GetResult();
+			}
+			catch (OperationCanceledException exception)
+			{
+				return exception;
+			}
+		}
+
+		return null;
+	}
+
+	/// <summary>
 	/// Reports whether <see cref="ActionInterval"/> has passed since the last run, measured on a
 	/// monotonic clock. Callers hold <see cref="Lock"/>.
 	/// </summary>
@@ -516,8 +550,8 @@ public class IntervalAction
 		{
 			lock (Lock)
 			{
-				exception = ActionTask is { IsFaulted: true } faultedAction
-					? faultedAction.Exception?.GetBaseException()
+				exception = ActionTask is { IsCompleted: true } finishedAction
+					? GetActionFailure(finishedAction)
 					: null;
 			}
 		}
