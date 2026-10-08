@@ -221,8 +221,65 @@ public class IntervalAction
 	/// <remarks>
 	/// A restart that is still pending when this is called is cancelled rather than left to resume
 	/// polling once it finishes. A restart requested after this call is unaffected.
+	/// A run that was dispatched but has not begun by the time this is called is skipped. A run that
+	/// had already begun is not waited for: use <see cref="StopAsync"/> to wait until it has finished.
 	/// </remarks>
-	public void Stop()
+	public void Stop() => StopCore(out _);
+
+	/// <summary>
+	/// Stops the polling of the action, then waits for the polling loop and any run of the action
+	/// that is still in flight to finish.
+	/// </summary>
+	/// <returns>
+	/// A task that completes once no run of the action is executing and none can start, until the
+	/// next <see cref="Restart"/> or <see cref="RestartAsync"/>.
+	/// </returns>
+	/// <remarks>
+	/// <para>
+	/// Use this rather than <see cref="Stop"/> before disposing anything the action uses. A run that
+	/// <see cref="Stop"/> skips never starts, and a run that had already started is awaited.
+	/// </para>
+	/// <para>
+	/// The returned task does not fault when the action did. Call <see cref="RethrowExceptions"/>
+	/// afterwards to observe a failure from the final run.
+	/// </para>
+	/// <para>
+	/// Do not await this from inside the action: it waits for the action to finish, so it would never complete.
+	/// </para>
+	/// </remarks>
+	public async Task StopAsync()
+	{
+		// A restart already pending when the stop lands is awaited too: it may be between deciding to
+		// start a loop and publishing it as PollingTask. One requested after the stop is not waited on.
+		StopCore(out Task pendingRestart);
+		await WaitAndDiscardOutcomeAsync(pendingRestart).ConfigureAwait(false);
+
+		Task pollingTask;
+		lock (Lock)
+		{
+			pollingTask = PollingTask;
+		}
+
+		await WaitAndDiscardOutcomeAsync(pollingTask).ConfigureAwait(false);
+
+		// The loop has exited, so it can no longer claim a new run: what is in ActionTask now is the last one
+		Task? actionTask;
+		lock (Lock)
+		{
+			actionTask = ActionTask;
+		}
+
+		if (actionTask is not null)
+		{
+			await WaitAndDiscardOutcomeAsync(actionTask).ConfigureAwait(false);
+		}
+	}
+
+	/// <summary>
+	/// Stops polling and cancels the running asynchronous action, if any.
+	/// </summary>
+	/// <param name="pendingRestart">The restart that was pending, or last completed, when the stop took effect.</param>
+	private void StopCore(out Task pendingRestart)
 	{
 		CancellationTokenSource? actionCancellation;
 
@@ -231,6 +288,7 @@ public class IntervalAction
 			StopGeneration++;
 			EndPolling();
 			actionCancellation = ActionCancellation;
+			pendingRestart = RestartGate;
 		}
 
 		// Cancelled outside the lock, because cancelling runs the action's own token callbacks
@@ -337,7 +395,9 @@ public class IntervalAction
 
 				while (shouldPoll)
 				{
-					TryRun();
+					// Passing the generation this loop was started under lets TryRun refuse to claim a run
+					// if Stop() lands between the ShouldPoll read above and the claim
+					TryRun(stopGeneration);
 
 					try
 					{
@@ -376,6 +436,27 @@ public class IntervalAction
 	/// <returns><c>true</c> if the action was started; otherwise, <c>false</c>.</returns>
 	internal bool TryRun()
 	{
+		long stopGeneration;
+
+		lock (Lock)
+		{
+			stopGeneration = StopGeneration;
+		}
+
+		return TryRun(stopGeneration);
+	}
+
+	/// <summary>
+	/// Attempts to run the action if the specified interval has passed since the last execution, and
+	/// no <see cref="Stop"/> has happened since <paramref name="stopGeneration"/> was read.
+	/// </summary>
+	/// <param name="stopGeneration">
+	/// The value of <see cref="StopGeneration"/> the caller is running under. The run is neither
+	/// claimed, nor, once claimed, begun, if a <see cref="Stop"/> has happened since.
+	/// </param>
+	/// <returns><c>true</c> if the action was dispatched; otherwise, <c>false</c>.</returns>
+	private bool TryRun(long stopGeneration)
+	{
 		Ensure.NotNull(Action);
 
 		// Check and claim ActionTask under the lock, so two callers can never both see it empty and
@@ -393,21 +474,26 @@ public class IntervalAction
 				ActionTask = null;
 			}
 
+			if (StopGeneration != stopGeneration)
+			{
+				return false;
+			}
+
 			if (ActionInterval >= TimeSpan.Zero && ActionTask is null && HasIntervalElapsed())
 			{
 				if (AsyncAction is { } asyncAction)
 				{
 					CancellationTokenSource cancellation = new();
 					ActionCancellation = cancellation;
-					ActionTask = Task.Run(() => RunAsyncAction(asyncAction, cancellation), CancellationToken.None);
+					ActionTask = Task.Run(() => RunAsyncAction(asyncAction, cancellation, stopGeneration), CancellationToken.None);
 					return true;
 				}
 
 				ActionTask = Task.Run(() =>
 				{
-					if (IntervalType == IntervalType.FromLastStart)
+					if (!TryBeginRun(stopGeneration))
 					{
-						RecordRun();
+						return;
 					}
 
 					Action();
@@ -426,18 +512,50 @@ public class IntervalAction
 	}
 
 	/// <summary>
+	/// Decides, once a dispatched run is finally executing, whether it may still call the action.
+	/// </summary>
+	/// <param name="stopGeneration">The value of <see cref="StopGeneration"/> the run was claimed under.</param>
+	/// <returns><see langword="false"/> if <see cref="Stop"/> has been called since the run was claimed.</returns>
+	/// <remarks>
+	/// The run is claimed under <see cref="Lock"/>, but the thread pool starts it later. Without this
+	/// check, a <see cref="Stop"/> in between would return, the polling loop would exit, and the action
+	/// would still begin afterwards, possibly against resources the caller had already disposed.
+	/// </remarks>
+	private bool TryBeginRun(long stopGeneration)
+	{
+		lock (Lock)
+		{
+			if (StopGeneration != stopGeneration)
+			{
+				return false;
+			}
+
+			// Recorded under the same lock as the check, rather than through RecordRun, so a run that
+			// begins is always one that a stop had not yet reached
+			if (IntervalType == IntervalType.FromLastStart)
+			{
+				LastRunTime = DateTimeOffset.Now;
+				LastRunTimestamp = Stopwatch.GetTimestamp();
+			}
+
+			return true;
+		}
+	}
+
+	/// <summary>
 	/// Runs <see cref="AsyncAction"/> once, so that the returned task completes when its work does.
 	/// </summary>
 	/// <param name="asyncAction">The action to run.</param>
 	/// <param name="cancellation">The source whose token the action receives, and which this run disposes.</param>
+	/// <param name="stopGeneration">The value of <see cref="StopGeneration"/> the run was claimed under.</param>
 	/// <returns>A task that completes, or faults, when the action does.</returns>
-	private async Task RunAsyncAction(Func<CancellationToken, Task> asyncAction, CancellationTokenSource cancellation)
+	private async Task RunAsyncAction(Func<CancellationToken, Task> asyncAction, CancellationTokenSource cancellation, long stopGeneration)
 	{
 		try
 		{
-			if (IntervalType == IntervalType.FromLastStart)
+			if (!TryBeginRun(stopGeneration))
 			{
-				RecordRun();
+				return;
 			}
 
 			try

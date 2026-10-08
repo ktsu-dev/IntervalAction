@@ -2,6 +2,10 @@
 
 [assembly: DoNotParallelize]
 
+// Most tests here exercise the synchronous Stop() on purpose: what it does while a run is still in
+// flight is the behavior under test, and StopAsync() would wait that run out. StopAsync() has tests of its own.
+#pragma warning disable CA1849 // Call async methods when in an async method
+
 namespace ktsu.IntervalAction.Test;
 
 using Microsoft.VisualStudio.TestTools.UnitTesting;
@@ -295,7 +299,7 @@ public class IntervalActionTests
 		{
 			PollingInterval = TimeSpan.FromMilliseconds(10),
 			ActionInterval = TimeSpan.Zero,
-			Action = () => counter++,
+			Action = () => Interlocked.Increment(ref counter),
 			IntervalType = IntervalType.FromLastStart
 		};
 
@@ -303,17 +307,72 @@ public class IntervalActionTests
 		// Allow the polling loop to execute a few times.
 		await Task.Delay(30).ConfigureAwait(false);
 
-		// Act
-		intervalAction.Stop();
-		// Await the polling task to ensure the loop has exited.
-		await intervalAction.PollingTask.ConfigureAwait(false);
-		int counterAfterStop = counter;
+		// Act: StopAsync returns only once the loop has exited and the last run has finished, so
+		// nothing is left that could still change the counter
+		await intervalAction.StopAsync().ConfigureAwait(false);
+		int counterAfterStop = Volatile.Read(ref counter);
 
 		// Wait additional time to verify no further actions are executed.
 		await Task.Delay(30).ConfigureAwait(false);
-		Assert.AreEqual(counterAfterStop, counter);
+		Assert.AreEqual(counterAfterStop, Volatile.Read(ref counter));
+		Assert.IsTrue(intervalAction.PollingTask.IsCompleted, "The polling loop should have exited.");
+		Assert.IsTrue(intervalAction.ActionTask?.IsCompleted ?? true, "No run should still be in flight.");
 
 		intervalAction.RethrowExceptions();
+	}
+
+	[TestMethod]
+	public async Task NoActionRunsOrStartsAfterStopAsync()
+	{
+		// Arrange: polling and running as fast as the class allows, so a stop usually lands while a run
+		// has been dispatched to the thread pool but has not begun, or is in progress
+		const int trials = 500;
+		int startedAfterStop = 0;
+		int runningAtStop = 0;
+
+		for (int trial = 0; trial < trials; trial++)
+		{
+			int running = 0;
+			int stopped = 0;
+			int startedLate = 0;
+			IntervalActionOptions options = new()
+			{
+				PollingInterval = TimeSpan.FromMilliseconds(1),
+				ActionInterval = TimeSpan.Zero,
+				Action = () =>
+				{
+					Interlocked.Increment(ref running);
+					if (Volatile.Read(ref stopped) != 0)
+					{
+						Interlocked.Increment(ref startedLate);
+					}
+
+					Thread.SpinWait(200);
+					Interlocked.Decrement(ref running);
+				},
+				IntervalType = IntervalType.FromLastStart
+			};
+
+			IntervalAction intervalAction = IntervalAction.Start(options);
+			await Task.Delay(trial % 3).ConfigureAwait(false);
+
+			// Act
+			await intervalAction.StopAsync().ConfigureAwait(false);
+			Volatile.Write(ref stopped, 1);
+			runningAtStop += Volatile.Read(ref running);
+
+			// Give a run that was dispatched but not yet begun the chance to begin, if one could
+			await Task.Delay(1).ConfigureAwait(false);
+			await Task.Yield();
+			startedAfterStop += Volatile.Read(ref startedLate);
+
+			intervalAction.RethrowExceptions();
+		}
+
+		// Assert
+		string outcome = $"Of {trials} trials, a run was still executing when StopAsync returned in {runningAtStop}, and a run began after it returned in {startedAfterStop}.";
+		Assert.AreEqual(0, runningAtStop, outcome);
+		Assert.AreEqual(0, startedAfterStop, outcome);
 	}
 
 	[TestMethod]
