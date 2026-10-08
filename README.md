@@ -116,7 +116,11 @@ var intervalAction = IntervalAction.Start(new()
 
 // For cleanup when done
 await Task.Delay(60000); // Run for 1 minute
-intervalAction.Stop();
+
+// StopAsync cancels the token, then waits for the run in progress to finish, so nothing the
+// action uses is disposed while it is still running. Stop() returns without waiting.
+await intervalAction.StopAsync();
+intervalAction.RethrowExceptions(); // Reports a failure from the final run, if there was one
 ```
 
 ### Dynamic Interval Adjustment
@@ -161,9 +165,9 @@ The main class for scheduling recurring actions.
 | Name | Parameters | Return Type | Description |
 |------|------------|-------------|-------------|
 | `Start` | `IntervalActionOptions options` | `IntervalAction` | Static factory method to create and start an interval action |
-| `Stop` | | `void` | Stops the scheduled action from running |
+| `Stop` | | `void` | Stops the scheduled action from running; a run already in progress is not waited for |
+| `StopAsync` | | `Task` | Stops the scheduled action, then completes once the polling loop has exited and any run in progress has finished. Use it before disposing anything the action uses |
 | `Restart` | | `void` | Restarts a previously stopped action |
-| `Dispose` | | `void` | Cleans up resources and stops the action |
 
 ### `IntervalActionOptions` Class
 

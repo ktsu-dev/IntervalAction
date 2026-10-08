@@ -90,7 +90,7 @@ Import-Module ./scripts/PSBuild.psm1
 - Exception handling: Exceptions from actions are captured and can be rethrown via `RethrowExceptions()`
 - The library prevents overlapping executions - if an action is still running when the next interval arrives, it waits until the current action completes
 - `LastRunTimestamp` (a `Stopwatch` timestamp) tracks when the action last executed (based on `IntervalType`), and is what scheduling measures from. `LastRunTime` records the same moment as wall-clock time for reporting only: the wall clock can be set back, which would hold the action off for as long as it moved
-- Polling can be stopped/restarted via `Stop()` and `Restart()`/`RestartAsync()`
+- Polling can be stopped/restarted via `Stop()`/`StopAsync()` and `Restart()`/`RestartAsync()`. A dispatched run re-checks `StopGeneration` under the lock before it begins, so `Stop()` skips one that has not started; `StopAsync()` also waits for the polling loop and any run in progress
 
 ## Testing
 
