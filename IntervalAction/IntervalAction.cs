@@ -31,6 +31,12 @@ public class IntervalAction
 	internal long? LastRunTimestamp { get; set; }
 
 	/// <summary>
+	/// Gets or sets the monotonic clock scheduling reads, in <see cref="Stopwatch"/> ticks.
+	/// </summary>
+	/// <remarks>Replaceable so tests can decide exactly what each read returns.</remarks>
+	internal Func<long> GetTimestamp { get; set; } = Stopwatch.GetTimestamp;
+
+	/// <summary>
 	/// The shortest polling interval <see cref="Task.Delay(TimeSpan)"/> waits out rather than truncating to zero.
 	/// </summary>
 	private static readonly TimeSpan MinimumPollingInterval = TimeSpan.FromMilliseconds(1);
@@ -401,7 +407,7 @@ public class IntervalAction
 
 					try
 					{
-						await Task.Delay(PollingInterval, cancellation.Token).ConfigureAwait(false);
+						await WaitOutPollingIntervalAsync(cancellation.Token).ConfigureAwait(false);
 					}
 					catch (OperationCanceledException) when (cancellation.IsCancellationRequested)
 					{
@@ -428,6 +434,29 @@ public class IntervalAction
 				cancellation.Dispose();
 			}
 		}, CancellationToken.None);
+	}
+
+	/// <summary>
+	/// Waits at least <see cref="PollingInterval"/>, as measured on a monotonic clock.
+	/// </summary>
+	/// <param name="cancellationToken">Ends the wait early.</param>
+	/// <returns>A task that completes once the whole polling interval has passed.</returns>
+	/// <remarks>
+	/// <see cref="Task.Delay(TimeSpan, CancellationToken)"/> counts whole system timer ticks, so it can
+	/// wake up to one tick early. With the action interval a multiple of the polling interval, that
+	/// early tick lands just short of the run being due, and the run slips a whole polling interval.
+	/// Topping the wait up to the full interval keeps the tick from arriving before the run is due.
+	/// </remarks>
+	private async Task WaitOutPollingIntervalAsync(CancellationToken cancellationToken)
+	{
+		long start = Stopwatch.GetTimestamp();
+		TimeSpan remaining = PollingInterval;
+
+		while (remaining > TimeSpan.Zero)
+		{
+			await Task.Delay(TimeSpan.FromMilliseconds(Math.Ceiling(remaining.TotalMilliseconds)), cancellationToken).ConfigureAwait(false);
+			remaining = PollingInterval - GetElapsedTime(start, Stopwatch.GetTimestamp());
+		}
 	}
 
 	/// <summary>
@@ -479,19 +508,23 @@ public class IntervalAction
 				return false;
 			}
 
-			if (ActionInterval >= TimeSpan.Zero && ActionTask is null && HasIntervalElapsed())
+			// Read once, so the moment the run is judged due is also the moment a FromLastStart run is
+			// recorded as starting
+			long now = GetTimestamp();
+
+			if (ActionInterval >= TimeSpan.Zero && ActionTask is null && HasIntervalElapsed(now))
 			{
 				if (AsyncAction is { } asyncAction)
 				{
 					CancellationTokenSource cancellation = new();
 					ActionCancellation = cancellation;
-					ActionTask = Task.Run(() => RunAsyncAction(asyncAction, cancellation, stopGeneration), CancellationToken.None);
+					ActionTask = Task.Run(() => RunAsyncAction(asyncAction, cancellation, stopGeneration, now), CancellationToken.None);
 					return true;
 				}
 
 				ActionTask = Task.Run(() =>
 				{
-					if (!TryBeginRun(stopGeneration))
+					if (!TryBeginRun(stopGeneration, now))
 					{
 						return;
 					}
@@ -515,13 +548,22 @@ public class IntervalAction
 	/// Decides, once a dispatched run is finally executing, whether it may still call the action.
 	/// </summary>
 	/// <param name="stopGeneration">The value of <see cref="StopGeneration"/> the run was claimed under.</param>
+	/// <param name="claimedAt">The <see cref="GetTimestamp"/> reading the run was judged due at.</param>
 	/// <returns><see langword="false"/> if <see cref="Stop"/> has been called since the run was claimed.</returns>
 	/// <remarks>
+	/// <para>
 	/// The run is claimed under <see cref="Lock"/>, but the thread pool starts it later. Without this
 	/// check, a <see cref="Stop"/> in between would return, the polling loop would exit, and the action
 	/// would still begin afterwards, possibly against resources the caller had already disposed.
+	/// </para>
+	/// <para>
+	/// A FromLastStart run is recorded as starting at <paramref name="claimedAt"/>, not when the thread
+	/// pool got to it. Stamping the later moment shortened the next tick's measurement by that dispatch
+	/// delay, so with the action interval a multiple of the polling interval the next run regularly
+	/// came out just short of due and slipped a whole polling interval.
+	/// </para>
 	/// </remarks>
-	private bool TryBeginRun(long stopGeneration)
+	private bool TryBeginRun(long stopGeneration, long claimedAt)
 	{
 		lock (Lock)
 		{
@@ -535,7 +577,7 @@ public class IntervalAction
 			if (IntervalType == IntervalType.FromLastStart)
 			{
 				LastRunTime = DateTimeOffset.Now;
-				LastRunTimestamp = Stopwatch.GetTimestamp();
+				LastRunTimestamp = claimedAt;
 			}
 
 			return true;
@@ -548,12 +590,13 @@ public class IntervalAction
 	/// <param name="asyncAction">The action to run.</param>
 	/// <param name="cancellation">The source whose token the action receives, and which this run disposes.</param>
 	/// <param name="stopGeneration">The value of <see cref="StopGeneration"/> the run was claimed under.</param>
+	/// <param name="claimedAt">The <see cref="GetTimestamp"/> reading the run was judged due at.</param>
 	/// <returns>A task that completes, or faults, when the action does.</returns>
-	private async Task RunAsyncAction(Func<CancellationToken, Task> asyncAction, CancellationTokenSource cancellation, long stopGeneration)
+	private async Task RunAsyncAction(Func<CancellationToken, Task> asyncAction, CancellationTokenSource cancellation, long stopGeneration, long claimedAt)
 	{
 		try
 		{
-			if (!TryBeginRun(stopGeneration))
+			if (!TryBeginRun(stopGeneration, claimedAt))
 			{
 				return;
 			}
@@ -625,8 +668,13 @@ public class IntervalAction
 	/// Reports whether <see cref="ActionInterval"/> has passed since the last run, measured on a
 	/// monotonic clock. Callers hold <see cref="Lock"/>.
 	/// </summary>
-	private bool HasIntervalElapsed() =>
-		LastRunTimestamp is not long lastRun || GetElapsedTime(lastRun) > ActionInterval;
+	/// <param name="now">The current <see cref="GetTimestamp"/> reading.</param>
+	/// <remarks>
+	/// A run is due once exactly the interval has passed. A strict comparison would turn a tick that
+	/// lands right on the interval into a wait for the next one.
+	/// </remarks>
+	private bool HasIntervalElapsed(long now) =>
+		LastRunTimestamp is not long lastRun || GetElapsedTime(lastRun, now) >= ActionInterval;
 
 	/// <summary>
 	/// Records that the action has just run.
@@ -636,18 +684,19 @@ public class IntervalAction
 		lock (Lock)
 		{
 			LastRunTime = DateTimeOffset.Now;
-			LastRunTimestamp = Stopwatch.GetTimestamp();
+			LastRunTimestamp = GetTimestamp();
 		}
 	}
 
 	/// <summary>
-	/// Returns the time elapsed since a <see cref="Stopwatch"/> timestamp.
+	/// Returns the time elapsed between two <see cref="Stopwatch"/> timestamps.
 	/// </summary>
-	/// <param name="startingTimestamp">A value from <see cref="Stopwatch.GetTimestamp"/>.</param>
-	/// <returns>The time elapsed since <paramref name="startingTimestamp"/>.</returns>
+	/// <param name="startingTimestamp">The earlier timestamp.</param>
+	/// <param name="endingTimestamp">The later timestamp.</param>
+	/// <returns>The time elapsed from <paramref name="startingTimestamp"/> to <paramref name="endingTimestamp"/>.</returns>
 	/// <remarks>Stopwatch.GetElapsedTime does this, but only from .NET 7.</remarks>
-	private static TimeSpan GetElapsedTime(long startingTimestamp) =>
-		TimeSpan.FromTicks((long)((Stopwatch.GetTimestamp() - startingTimestamp) * ((double)TimeSpan.TicksPerSecond / Stopwatch.Frequency)));
+	private static TimeSpan GetElapsedTime(long startingTimestamp, long endingTimestamp) =>
+		TimeSpan.FromTicks((long)((endingTimestamp - startingTimestamp) * ((double)TimeSpan.TicksPerSecond / Stopwatch.Frequency)));
 
 	/// <summary>
 	/// Rethrows any exceptions that occurred during the polling task.
