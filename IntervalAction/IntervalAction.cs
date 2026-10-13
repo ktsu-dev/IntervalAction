@@ -11,8 +11,11 @@ using System.Runtime.ExceptionServices;
 ///
 /// NOTE: Tasks will not be started if the previous task is still running to prevent overlapping executions.
 /// If the task is still running when the interval is reached, the new task will be started on the next TryRun call after the previous task completes.
+///
+/// The polling loop keeps the instance alive, so one that is no longer referenced still runs its action:
+/// call <see cref="Dispose"/>, or <see cref="Stop"/>, when it is no longer needed.
 /// </summary>
-public class IntervalAction
+public sealed class IntervalAction : IDisposable
 {
 	/// <summary>
 	/// Gets or sets the last run time of the action, as wall-clock time.
@@ -130,6 +133,12 @@ public class IntervalAction
 	/// disposed source.
 	/// </remarks>
 	private CancellationTokenSource? PollingCancellation { get; set; }
+
+	/// <summary>
+	/// Gets or sets a value indicating whether <see cref="Dispose"/> has been called, after which the
+	/// instance cannot be restarted. Only read or set while holding <see cref="Lock"/>.
+	/// </summary>
+	private bool IsDisposed { get; set; }
 
 	/// <summary>
 	/// Waits for a task to finish and discards however it finished.
@@ -276,6 +285,30 @@ public class IntervalAction
 	}
 
 	/// <summary>
+	/// Stops the action for good: polling ends, a run that has not begun is skipped, and the instance
+	/// can no longer be restarted.
+	/// </summary>
+	/// <remarks>
+	/// <para>
+	/// Like <see cref="Stop"/>, this does not wait for a run that had already begun. Await
+	/// <see cref="StopAsync"/> first if the action uses anything that is about to be disposed.
+	/// </para>
+	/// <para>
+	/// Calling this more than once has no further effect. <see cref="Restart"/> and
+	/// <see cref="RestartAsync"/> throw <see cref="ObjectDisposedException"/> afterwards.
+	/// </para>
+	/// </remarks>
+	public void Dispose()
+	{
+		lock (Lock)
+		{
+			IsDisposed = true;
+		}
+
+		Stop();
+	}
+
+	/// <summary>
 	/// Stops polling and cancels the running asynchronous action, if any.
 	/// </summary>
 	/// <param name="pendingRestart">The restart that was pending, or last completed, when the stop took effect.</param>
@@ -320,16 +353,20 @@ public class IntervalAction
 	/// <summary>
 	/// Restarts the polling of the action.
 	/// </summary>
+	/// <exception cref="ObjectDisposedException">Thrown if the instance has been disposed.</exception>
 	public void Restart() => RestartAsync().Wait(CancellationToken.None);
 
 	/// <summary>
 	/// Asynchronously restarts the polling of the action.
 	/// </summary>
 	/// <returns>A task that represents the asynchronous operation.</returns>
+	/// <exception cref="ObjectDisposedException">Thrown if the instance has been disposed.</exception>
 	public Task RestartAsync()
 	{
 		lock (Lock)
 		{
+			ObjectDisposedException.ThrowIf(IsDisposed, this);
+
 			return RestartGate = RestartCoreAsync(RestartGate, StopGeneration);
 		}
 	}

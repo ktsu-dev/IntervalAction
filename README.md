@@ -153,12 +153,7 @@ Console.WriteLine("Interval changed to 1 second");
 
 The main class for scheduling recurring actions.
 
-#### Properties
-
-| Name | Type | Description |
-|------|------|-------------|
-| `IsRunning` | `bool` | Indicates if the action is currently scheduled to run |
-| `Options` | `IntervalActionOptions` | The current options for this interval action |
+It implements `IDisposable`.
 
 #### Methods
 
@@ -168,6 +163,9 @@ The main class for scheduling recurring actions.
 | `Stop` | | `void` | Stops the scheduled action from running; a run already in progress is not waited for |
 | `StopAsync` | | `Task` | Stops the scheduled action, then completes once the polling loop has exited and any run in progress has finished. Use it before disposing anything the action uses |
 | `Restart` | | `void` | Restarts a previously stopped action |
+| `RestartAsync` | | `Task` | Restarts a previously stopped action, completing once the new polling loop has started |
+| `RethrowExceptions` | | `void` | Rethrows the exception the action last failed with, if any |
+| `Dispose` | | `void` | Stops the action for good, like `Stop`, after which `Restart` throws `ObjectDisposedException`. An instance that is never stopped or disposed keeps running even when nothing references it |
 
 ### `IntervalActionOptions` Class
 

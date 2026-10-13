@@ -949,4 +949,64 @@ public class IntervalActionTests
 
 		Assert.IsTrue(intervalAction.TryRun(), "Expected the action to run once its interval had passed, whatever the wall clock says.");
 	}
+
+	[TestMethod]
+	public void IntervalActionIsDisposable() =>
+		Assert.IsTrue(typeof(IDisposable).IsAssignableFrom(typeof(IntervalAction)), "Expected IntervalAction to implement IDisposable, so using and the analyzers can catch a forgotten Stop().");
+
+	[TestMethod]
+	public async Task NoRunStartsAfterDispose()
+	{
+		int counter = 0;
+		IntervalAction intervalAction = IntervalAction.Start(new()
+		{
+			PollingInterval = TimeSpan.FromMilliseconds(10),
+			ActionInterval = TimeSpan.Zero,
+			Action = () => Interlocked.Increment(ref counter),
+		});
+
+		await Task.Delay(100).ConfigureAwait(false);
+		intervalAction.Dispose();
+
+		// A run that had already begun when Dispose was called may still finish. The action returns
+		// at once, so waiting a few polling intervals is enough for it to have done so.
+		await Task.Delay(50).ConfigureAwait(false);
+		int countAfterDispose = Volatile.Read(ref counter);
+		Assert.IsGreaterThan(0, countAfterDispose, "Expected the action to have run before it was disposed.");
+
+		await Task.Delay(200).ConfigureAwait(false);
+		Assert.AreEqual(countAfterDispose, Volatile.Read(ref counter), "Expected no run to start after Dispose.");
+		intervalAction.RethrowExceptions();
+	}
+
+	[TestMethod]
+	public async Task RestartAfterDisposeThrows()
+	{
+		IntervalAction intervalAction = IntervalAction.Start(new()
+		{
+			PollingInterval = TimeSpan.FromMilliseconds(10),
+			ActionInterval = TimeSpan.FromMilliseconds(10),
+			Action = static () => { },
+		});
+
+		intervalAction.Dispose();
+
+		Assert.ThrowsExactly<ObjectDisposedException>(intervalAction.Restart);
+		await Assert.ThrowsExactlyAsync<ObjectDisposedException>(intervalAction.RestartAsync).ConfigureAwait(false);
+	}
+
+	[TestMethod]
+	public void DisposeIsIdempotent()
+	{
+		IntervalAction intervalAction = IntervalAction.Start(new()
+		{
+			PollingInterval = TimeSpan.FromMilliseconds(10),
+			ActionInterval = TimeSpan.FromMilliseconds(10),
+			Action = static () => { },
+		});
+
+		intervalAction.Dispose();
+		intervalAction.Dispose();
+		intervalAction.Stop();
+	}
 }
