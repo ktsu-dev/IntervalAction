@@ -972,6 +972,8 @@ public class IntervalActionTests
 		intervalAction.Dispose();
 		intervalAction.Dispose();
 		intervalAction.Stop();
+
+		Assert.ThrowsExactly<ObjectDisposedException>(intervalAction.Restart, "Expected the instance to stay disposed after repeated Dispose and Stop calls.");
 	}
 
 	[TestMethod]
