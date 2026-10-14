@@ -8,6 +8,8 @@
 
 namespace ktsu.IntervalAction.Test;
 
+using System.Collections.Concurrent;
+using System.Diagnostics;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 [TestClass]
@@ -1010,5 +1012,84 @@ public class IntervalActionTests
 		await Task.Delay(options.ActionInterval * 3).ConfigureAwait(false);
 
 		Assert.IsTrue(intervalAction.TryRun(), "Expected the action to run once its interval had passed, whatever the wall clock says.");
+	}
+
+	[TestMethod]
+	public async Task FromLastStartRecordsTheRunAtTheMomentItWasJudgedDue()
+	{
+		IntervalAction intervalAction = StartIdle(IntervalType.FromLastStart, out _);
+
+		// The tick reads the clock first; anything that reads it afterwards, as a run picked up late
+		// by the thread pool would, sees time has moved on
+		const long claimedAt = 1_000_000;
+		long reads = 0;
+		intervalAction.GetTimestamp = () => Interlocked.Increment(ref reads) == 1 ? claimedAt : claimedAt + Stopwatch.Frequency;
+
+		Assert.IsTrue(intervalAction.TryRun(), "Expected the run to be due.");
+		await intervalAction.ActionTask!.ConfigureAwait(false);
+
+		Assert.AreEqual(claimedAt, intervalAction.LastRunTimestamp, "Expected the run to be recorded as starting when the tick judged it due, not when the thread pool got to it.");
+	}
+
+	[TestMethod]
+	public void ARunIsDueOnceTheActionIntervalHasPassed()
+	{
+		IntervalAction intervalAction = StartIdle(IntervalType.FromLastCompletion, out TimeSpan actionInterval);
+
+		const long lastRun = 1_000_000;
+		long intervalTicks = (long)(actionInterval.TotalSeconds * Stopwatch.Frequency);
+		intervalAction.LastRunTimestamp = lastRun;
+
+		intervalAction.GetTimestamp = () => lastRun + (intervalTicks / 2);
+		Assert.IsFalse(intervalAction.TryRun(), "Expected the run not to be due halfway through the interval.");
+
+		intervalAction.GetTimestamp = () => lastRun + intervalTicks;
+		Assert.IsTrue(intervalAction.TryRun(), "Expected a tick that lands exactly on the interval to run the action, not wait for the next tick.");
+	}
+
+	[TestMethod]
+	public async Task EqualPollingAndActionIntervalsSkipNoTicks()
+	{
+		Stopwatch stopwatch = Stopwatch.StartNew();
+		ConcurrentQueue<long> runTimes = new();
+		TimeSpan interval = TimeSpan.FromMilliseconds(200);
+
+		IntervalAction intervalAction = IntervalAction.Start(new()
+		{
+			PollingInterval = interval,
+			ActionInterval = interval,
+			IntervalType = IntervalType.FromLastStart,
+			Action = () => runTimes.Enqueue(stopwatch.ElapsedMilliseconds),
+		});
+
+		await Task.Delay(interval * 10).ConfigureAwait(false);
+		await intervalAction.StopAsync().ConfigureAwait(false);
+		intervalAction.RethrowExceptions();
+
+		long[] times = [.. runTimes];
+		long longestGap = times.Zip(times.Skip(1), static (earlier, later) => later - earlier).Max();
+		Assert.IsLessThan(interval.TotalMilliseconds * 1.5, longestGap, $"Expected the action to run every {interval.TotalMilliseconds} ms without skipping a tick, but runs were at {string.Join(", ", times)} ms.");
+	}
+
+	/// <summary>
+	/// Starts an instance whose polling loop runs the action once and then leaves <see cref="IntervalAction.TryRun()"/> to the test.
+	/// </summary>
+	private static IntervalAction StartIdle(IntervalType intervalType, out TimeSpan actionInterval)
+	{
+		actionInterval = TimeSpan.FromSeconds(1);
+		IntervalAction intervalAction = IntervalAction.Start(new()
+		{
+			PollingInterval = TimeSpan.FromHours(1),
+			ActionInterval = actionInterval,
+			IntervalType = intervalType,
+			Action = static () => { },
+		});
+
+		// Stopping keeps the loop, now in its hour-long delay, from ever calling TryRun again. The
+		// first run it dispatched may still be in flight, so wait it out before the test takes over.
+		intervalAction.StopAsync().Wait(CancellationToken.None);
+		intervalAction.ActionTask = null;
+		intervalAction.LastRunTimestamp = null;
+		return intervalAction;
 	}
 }

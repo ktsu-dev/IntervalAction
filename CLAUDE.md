@@ -90,6 +90,7 @@ Import-Module ./scripts/PSBuild.psm1
 - Exception handling: Exceptions from actions are captured and can be rethrown via `RethrowExceptions()`
 - The library prevents overlapping executions - if an action is still running when the next interval arrives, it waits until the current action completes
 - `LastRunTimestamp` (a `Stopwatch` timestamp) tracks when the action last executed (based on `IntervalType`), and is what scheduling measures from. `LastRunTime` records the same moment as wall-clock time for reporting only: the wall clock can be set back, which would hold the action off for as long as it moved
+- A run is due once `ActionInterval` has passed (`>=`), and a `FromLastStart` run is stamped with the clock reading its tick judged it due at, not when the thread pool started it. The polling wait tops `Task.Delay` up to the full `PollingInterval`, because timers can wake a tick early. Without all three, equal polling and action intervals regularly skip a tick
 - Polling can be stopped/restarted via `Stop()`/`StopAsync()` and `Restart()`/`RestartAsync()`. A dispatched run re-checks `StopGeneration` under the lock before it begins, so `Stop()` skips one that has not started; `StopAsync()` also waits for the polling loop and any run in progress
 - The class is sealed and implements `IDisposable`. `Dispose()` stops like `Stop()` and marks the instance disposed, so `Restart()`/`RestartAsync()` throw `ObjectDisposedException`. The polling loop roots the instance, so an instance that is neither stopped nor disposed runs for the life of the process
 
