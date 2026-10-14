@@ -2,203 +2,204 @@
 
 Changes since v1.6.0:
 
-- Assert that DisposeIsIdempotent leaves the instance disposed ([@Claude](https://github.com/Claude))
-- Move the Dispose tests ahead of the wall-clock test ([@Claude](https://github.com/Claude))
-- Implement IDisposable so a forgotten Stop() can be caught [minor] ([@Claude](https://github.com/Claude))
+- Assert that DisposeIsIdempotent leaves the instance disposed (Claude)
+- Move the Dispose tests ahead of the wall-clock test (Claude)
+- Implement IDisposable so a forgotten Stop() can be caught [minor] (Claude)
+- Stop equal polling and action intervals skipping a tick [patch] (Claude)
 
 ## v1.6.1-pre.1 (prerelease)
 
 Changes since v1.6.0:
 
-- Bump MSTest.Sdk from 4.4.1 to 4.5.1 ([@dependabot[bot]](https://github.com/dependabot[bot]))
+- Bump MSTest.Sdk from 4.4.1 to 4.5.1 (dependabot[bot])
 
 ## v1.6.0 (minor)
 
 Changes since v1.5.0:
 
-- Add StopAsync and keep a dispatched run from starting after Stop [minor] ([@Claude](https://github.com/Claude))
-- Report an action that throws OperationCanceledException as a failure [patch] ([@Claude](https://github.com/Claude))
-- Assert that an interval at Task.Delay's limits starts polling without faulting ([@Claude](https://github.com/Claude))
-- Reject polling intervals Task.Delay cannot honor [patch] ([@Claude](https://github.com/Claude))
-- Merge remote-tracking branch 'origin/main' into claude/intervalaction-64-cancel-polling-delay ([@Claude](https://github.com/Claude))
-- Pass CancellationToken.None explicitly where no cancellation is intended, and wait on the first run instead of sleeping in the test ([@Claude](https://github.com/Claude))
-- Cancel the polling delay on Stop and restart, so Restart() returns promptly [patch] ([@Claude](https://github.com/Claude))
+- Add StopAsync and keep a dispatched run from starting after Stop [minor] (Claude)
+- Report an action that throws OperationCanceledException as a failure [patch] (Claude)
+- Assert that an interval at Task.Delay's limits starts polling without faulting (Claude)
+- Reject polling intervals Task.Delay cannot honor [patch] (Claude)
+- Merge remote-tracking branch 'origin/main' into claude/intervalaction-64-cancel-polling-delay (Claude)
+- Pass CancellationToken.None explicitly where no cancellation is intended, and wait on the first run instead of sleeping in the test (Claude)
+- Cancel the polling delay on Stop and restart, so Restart() returns promptly [patch] (Claude)
 
 ## v1.5.3 (patch)
 
 Changes since v1.5.2:
 
-- Report an action that throws OperationCanceledException as a failure [patch] ([@Claude](https://github.com/Claude))
+- Report an action that throws OperationCanceledException as a failure [patch] (Claude)
 
 ## v1.5.2 (patch)
 
 Changes since v1.5.1:
 
-- Assert that an interval at Task.Delay's limits starts polling without faulting ([@Claude](https://github.com/Claude))
-- Reject polling intervals Task.Delay cannot honor [patch] ([@Claude](https://github.com/Claude))
+- Assert that an interval at Task.Delay's limits starts polling without faulting (Claude)
+- Reject polling intervals Task.Delay cannot honor [patch] (Claude)
 
 ## v1.5.1 (patch)
 
 Changes since v1.5.0:
 
-- Merge remote-tracking branch 'origin/main' into claude/intervalaction-64-cancel-polling-delay ([@Claude](https://github.com/Claude))
-- Pass CancellationToken.None explicitly where no cancellation is intended, and wait on the first run instead of sleeping in the test ([@Claude](https://github.com/Claude))
-- Cancel the polling delay on Stop and restart, so Restart() returns promptly [patch] ([@Claude](https://github.com/Claude))
+- Merge remote-tracking branch 'origin/main' into claude/intervalaction-64-cancel-polling-delay (Claude)
+- Pass CancellationToken.None explicitly where no cancellation is intended, and wait on the first run instead of sleeping in the test (Claude)
+- Cancel the polling delay on Stop and restart, so Restart() returns promptly [patch] (Claude)
 
 ## v1.5.0 (minor)
 
 Changes since v1.4.0:
 
-- Merge remote-tracking branch 'origin/main' into claude/intervalaction-59-async-action ([@Claude](https://github.com/Claude))
-- Pass CancellationToken.None explicitly where no cancellation is intended ([@Claude](https://github.com/Claude))
-- Assert the running action task is present instead of null-forgiving it in the test ([@Claude](https://github.com/Claude))
-- Assert the running action task is present instead of null-forgiving it in the test ([@Claude](https://github.com/Claude))
-- Add AsyncAction so async work is awaited, not run as async void [minor] ([@Claude](https://github.com/Claude))
-- Report an action that throws after Stop() from RethrowExceptions [patch] ([@Claude](https://github.com/Claude))
-- Wait for the polling loop to fault instead of sleeping in exception tests ([@Claude](https://github.com/Claude))
-- Move CI onto the shared ci-shared.yml pipeline ([@Claude](https://github.com/Claude))
-- Schedule the action from a monotonic clock, not the wall clock [patch] ([@Claude](https://github.com/Claude))
-- Let a Stop() during a pending RestartAsync() win [patch] ([@Claude](https://github.com/Claude))
-- Keep the action's stack trace when RethrowExceptions rethrows [patch] ([@Claude](https://github.com/Claude))
-- Reject a non-positive PollingInterval in Start ([@Claude](https://github.com/Claude))
-- fix: wait for a stopped polling loop before a restart starts a new one [patch] ([@matt-edmondson](https://github.com/matt-edmondson))
+- Merge remote-tracking branch 'origin/main' into claude/intervalaction-59-async-action (Claude)
+- Pass CancellationToken.None explicitly where no cancellation is intended (Claude)
+- Assert the running action task is present instead of null-forgiving it in the test (Claude)
+- Assert the running action task is present instead of null-forgiving it in the test (Claude)
+- Add AsyncAction so async work is awaited, not run as async void [minor] (Claude)
+- Report an action that throws after Stop() from RethrowExceptions [patch] (Claude)
+- Wait for the polling loop to fault instead of sleeping in exception tests (Claude)
+- Move CI onto the shared ci-shared.yml pipeline (Claude)
+- Schedule the action from a monotonic clock, not the wall clock [patch] (Claude)
+- Let a Stop() during a pending RestartAsync() win [patch] (Claude)
+- Keep the action's stack trace when RethrowExceptions rethrows [patch] (Claude)
+- Reject a non-positive PollingInterval in Start (Claude)
+- fix: wait for a stopped polling loop before a restart starts a new one [patch] (matt-edmondson)
 
 ## v1.4.7-pre.1 (prerelease)
 
 Changes since v1.4.6:
 
-- Bump Polyfill from 11.4.1 to 11.4.3 ([@dependabot[bot]](https://github.com/dependabot[bot]))
+- Bump Polyfill from 11.4.1 to 11.4.3 (dependabot[bot])
 
 ## v1.4.6 (patch)
 
 Changes since v1.4.5:
 
-- Assert the running action task is present instead of null-forgiving it in the test ([@Claude](https://github.com/Claude))
-- Report an action that throws after Stop() from RethrowExceptions [patch] ([@Claude](https://github.com/Claude))
+- Assert the running action task is present instead of null-forgiving it in the test (Claude)
+- Report an action that throws after Stop() from RethrowExceptions [patch] (Claude)
 
 ## v1.4.5 (patch)
 
 Changes since v1.4.4:
 
-- Wait for the polling loop to fault instead of sleeping in exception tests ([@Claude](https://github.com/Claude))
-- Move CI onto the shared ci-shared.yml pipeline ([@Claude](https://github.com/Claude))
+- Wait for the polling loop to fault instead of sleeping in exception tests (Claude)
+- Move CI onto the shared ci-shared.yml pipeline (Claude)
 
 ## v1.4.4 (patch)
 
 Changes since v1.4.3:
 
-- Schedule the action from a monotonic clock, not the wall clock [patch] ([@Claude](https://github.com/Claude))
+- Schedule the action from a monotonic clock, not the wall clock [patch] (Claude)
 
 ## v1.4.4-pre.1 (prerelease)
 
 Changes since v1.4.3:
 
-- Bump Polyfill from 11.4.0 to 11.4.1 ([@dependabot[bot]](https://github.com/dependabot[bot]))
+- Bump Polyfill from 11.4.0 to 11.4.1 (dependabot[bot])
 
 ## v1.4.3 (patch)
 
 Changes since v1.4.2:
 
-- Let a Stop() during a pending RestartAsync() win [patch] ([@Claude](https://github.com/Claude))
-- Keep the action's stack trace when RethrowExceptions rethrows [patch] ([@Claude](https://github.com/Claude))
+- Let a Stop() during a pending RestartAsync() win [patch] (Claude)
+- Keep the action's stack trace when RethrowExceptions rethrows [patch] (Claude)
 
 ## v1.4.2 (patch)
 
 Changes since v1.4.1:
 
-- Reject a non-positive PollingInterval in Start ([@Claude](https://github.com/Claude))
-- fix: wait for a stopped polling loop before a restart starts a new one [patch] ([@matt-edmondson](https://github.com/matt-edmondson))
+- Reject a non-positive PollingInterval in Start (Claude)
+- fix: wait for a stopped polling loop before a restart starts a new one [patch] (matt-edmondson)
 
 ## v1.4.1 (patch)
 
 Changes since v1.4.0:
 
-- Bump the ktsu group with 9 updates ([@dependabot[bot]](https://github.com/dependabot[bot]))
+- Bump the ktsu group with 9 updates (dependabot[bot])
 
 ## v1.4.0 (minor)
 
 Changes since v1.3.0:
 
-- Let Restart resume polling after the action throws ([@Claude](https://github.com/Claude))
-- Gate Dependabot auto-merge on CI actually being green ([@Claude](https://github.com/Claude))
-- ci: adopt the consolidated .NET workflow [patch] ([@Claude](https://github.com/Claude))
-- ci: make the SonarQube quality gate opt in [patch] ([@matt-edmondson](https://github.com/matt-edmondson))
-- ci: adopt the unified dotnet workflow [patch] ([@matt-edmondson](https://github.com/matt-edmondson))
-- docs: scope build badge to the default branch ([@matt-edmondson](https://github.com/matt-edmondson))
-- Stop Update SDKs failing when there is nothing to update ([@matt-edmondson](https://github.com/matt-edmondson))
-- Add direct System.Memory and System.Threading.Tasks.Extensions references for netstandard TFMs to fix KTSU0001 [patch] ([@matt-edmondson](https://github.com/matt-edmondson))
-- Sync .github\workflows\dotnet.yml ([@KtsuTools](https://github.com/KtsuTools))
-- Sync .editorconfig ([@KtsuTools](https://github.com/KtsuTools))
-- Sync .github\workflows\dotnet.yml ([@KtsuTools](https://github.com/KtsuTools))
-- Update ktsu.Sdk to version 2.25.0 and modify Polyfill package reference to use PrivateAssets ([@matt-edmondson](https://github.com/matt-edmondson))
-- chore: update icon.png ([@matt-edmondson](https://github.com/matt-edmondson))
-- chore: update ktsu.Sdk to 2.21.1 [patch] ([@matt-edmondson](https://github.com/matt-edmondson))
-- chore: remove unused SourceLink package versions ([@matt-edmondson](https://github.com/matt-edmondson))
-- chore: remove SourceLink package references from project ([@matt-edmondson](https://github.com/matt-edmondson))
-- Add TAGS.md with NuGet package tags ([@matt-edmondson](https://github.com/matt-edmondson))
-- Sync .github\workflows\dotnet.yml ([@KtsuTools](https://github.com/KtsuTools))
-- Remove legacy build scripts ([@matt-edmondson](https://github.com/matt-edmondson))
-- Add compatibility suppressions for new .NET versions and dynamic member types ([@matt-edmondson](https://github.com/matt-edmondson))
-- Remove .github\workflows\project.yml ([@matt-edmondson](https://github.com/matt-edmondson))
-- Migrate to dotnet 10 ([@matt-edmondson](https://github.com/matt-edmondson))
-- Remove caching configuration for .NET setup in workflow ([@matt-edmondson](https://github.com/matt-edmondson))
-- Add CLAUDE.md for project guidance and documentation ([@matt-edmondson](https://github.com/matt-edmondson))
-- Convert to PolySharp ([@Damon3000s](https://github.com/Damon3000s))
-- Add CompatibilitySuppressions.xml for .NET compatibility diagnostics and update exception handling in IntervalAction class. Introduce new tests for zero and negative intervals, and ensure Stop method is idempotent. ([@matt-edmondson](https://github.com/matt-edmondson))
-- Add configuration files for package management and CI/CD workflows ([@matt-edmondson](https://github.com/matt-edmondson))
-- Update configuration files and scripts for improved build and test processes ([@matt-edmondson](https://github.com/matt-edmondson))
-- Remove Directory.Build.props and Directory.Build.targets files; add copyright notices to IntervalAction source files and tests; update variable declarations in tests for consistency. ([@matt-edmondson](https://github.com/matt-edmondson))
-- Enhance documentation and update project SDK references. Improved the library description for clarity and added detailed features and usage examples in README. Updated project files to use the latest SDK versions. ([@matt-edmondson](https://github.com/matt-edmondson))
+- Let Restart resume polling after the action throws (Claude)
+- Gate Dependabot auto-merge on CI actually being green (Claude)
+- ci: adopt the consolidated .NET workflow [patch] (Claude)
+- ci: make the SonarQube quality gate opt in [patch] (matt-edmondson)
+- ci: adopt the unified dotnet workflow [patch] (matt-edmondson)
+- docs: scope build badge to the default branch (matt-edmondson)
+- Stop Update SDKs failing when there is nothing to update (matt-edmondson)
+- Add direct System.Memory and System.Threading.Tasks.Extensions references for netstandard TFMs to fix KTSU0001 [patch] (matt-edmondson)
+- Sync .github\workflows\dotnet.yml (KtsuTools)
+- Sync .editorconfig (KtsuTools)
+- Sync .github\workflows\dotnet.yml (KtsuTools)
+- Update ktsu.Sdk to version 2.25.0 and modify Polyfill package reference to use PrivateAssets (matt-edmondson)
+- chore: update icon.png (matt-edmondson)
+- chore: update ktsu.Sdk to 2.21.1 [patch] (matt-edmondson)
+- chore: remove unused SourceLink package versions (matt-edmondson)
+- chore: remove SourceLink package references from project (matt-edmondson)
+- Add TAGS.md with NuGet package tags (matt-edmondson)
+- Sync .github\workflows\dotnet.yml (KtsuTools)
+- Remove legacy build scripts (matt-edmondson)
+- Add compatibility suppressions for new .NET versions and dynamic member types (matt-edmondson)
+- Remove .github\workflows\project.yml (matt-edmondson)
+- Migrate to dotnet 10 (matt-edmondson)
+- Remove caching configuration for .NET setup in workflow (matt-edmondson)
+- Add CLAUDE.md for project guidance and documentation (matt-edmondson)
+- Convert to PolySharp (Damon3000s)
+- Add CompatibilitySuppressions.xml for .NET compatibility diagnostics and update exception handling in IntervalAction class. Introduce new tests for zero and negative intervals, and ensure Stop method is idempotent. (matt-edmondson)
+- Add configuration files for package management and CI/CD workflows (matt-edmondson)
+- Update configuration files and scripts for improved build and test processes (matt-edmondson)
+- Remove Directory.Build.props and Directory.Build.targets files; add copyright notices to IntervalAction source files and tests; update variable declarations in tests for consistency. (matt-edmondson)
+- Enhance documentation and update project SDK references. Improved the library description for clarity and added detailed features and usage examples in README. Updated project files to use the latest SDK versions. (matt-edmondson)
 
 ## v1.3.49 (patch)
 
 Changes since v1.3.48:
 
-- Bump the ktsu group with 9 updates ([@dependabot[bot]](https://github.com/dependabot[bot]))
+- Bump the ktsu group with 9 updates (dependabot[bot])
 
 ## v1.3.48 (patch)
 
 Changes since v1.3.47:
 
-- Bump Polyfill from 11.3.0 to 11.4.0 ([@dependabot[bot]](https://github.com/dependabot[bot]))
-- Bump the ktsu group with 9 updates ([@dependabot[bot]](https://github.com/dependabot[bot]))
+- Bump Polyfill from 11.3.0 to 11.4.0 (dependabot[bot])
+- Bump the ktsu group with 9 updates (dependabot[bot])
 
 ## v1.3.47 (patch)
 
 Changes since v1.3.46:
 
-- Bump the ktsu group with 9 updates ([@dependabot[bot]](https://github.com/dependabot[bot]))
+- Bump the ktsu group with 9 updates (dependabot[bot])
 
 ## v1.3.46 (patch)
 
 Changes since v1.3.45:
 
-- Bump ktsu.Sdk and 8 others ([@dependabot[bot]](https://github.com/dependabot[bot]))
-- Bump MSTest.Sdk from 4.4.0 to 4.4.1 ([@dependabot[bot]](https://github.com/dependabot[bot]))
+- Bump ktsu.Sdk and 8 others (dependabot[bot])
+- Bump MSTest.Sdk from 4.4.0 to 4.4.1 (dependabot[bot])
 
 ## v1.3.45 (patch)
 
 Changes since v1.3.44:
 
-- Gate Dependabot auto-merge on CI actually being green ([@Claude](https://github.com/Claude))
+- Gate Dependabot auto-merge on CI actually being green (Claude)
 
 ## v1.3.44 (patch)
 
 Changes since v1.3.43:
 
-- Bump the ktsu group with 9 updates ([@dependabot[bot]](https://github.com/dependabot[bot]))
+- Bump the ktsu group with 9 updates (dependabot[bot])
 
 ## v1.3.43 (patch)
 
 Changes since v1.3.42:
 
-- ci: adopt the consolidated .NET workflow [patch] ([@Claude](https://github.com/Claude))
+- ci: adopt the consolidated .NET workflow [patch] (Claude)
 
 ## v1.3.42 (patch)
 
 Changes since v1.3.41:
 
-- Bump Polyfill from 11.2.0 to 11.3.0 ([@dependabot[bot]](https://github.com/dependabot[bot]))
+- Bump Polyfill from 11.2.0 to 11.3.0 (dependabot[bot])
 
 ## v1.3.41 (patch)
 
@@ -208,417 +209,417 @@ No significant changes detected since v1.3.40.
 
 Changes since v1.3.39:
 
-- ci: make the SonarQube quality gate opt in [patch] ([@matt-edmondson](https://github.com/matt-edmondson))
-- ci: adopt the unified dotnet workflow [patch] ([@matt-edmondson](https://github.com/matt-edmondson))
+- ci: make the SonarQube quality gate opt in [patch] (matt-edmondson)
+- ci: adopt the unified dotnet workflow [patch] (matt-edmondson)
 
 ## v1.3.39 (patch)
 
 Changes since v1.3.38:
 
-- Bump the ktsu group with 9 updates ([@dependabot[bot]](https://github.com/dependabot[bot]))
+- Bump the ktsu group with 9 updates (dependabot[bot])
 
 ## v1.3.38 (patch)
 
 Changes since v1.3.37:
 
-- Bump the ktsu group with 9 updates ([@dependabot[bot]](https://github.com/dependabot[bot]))
+- Bump the ktsu group with 9 updates (dependabot[bot])
 
 ## v1.3.37 (patch)
 
 Changes since v1.3.36:
 
-- Bump the ktsu group with 9 updates ([@dependabot[bot]](https://github.com/dependabot[bot]))
+- Bump the ktsu group with 9 updates (dependabot[bot])
 
 ## v1.3.36 (patch)
 
 Changes since v1.3.35:
 
-- docs: scope build badge to the default branch ([@matt-edmondson](https://github.com/matt-edmondson))
+- docs: scope build badge to the default branch (matt-edmondson)
 
 ## v1.3.35 (patch)
 
 Changes since v1.3.34:
 
-- Stop Update SDKs failing when there is nothing to update ([@matt-edmondson](https://github.com/matt-edmondson))
+- Stop Update SDKs failing when there is nothing to update (matt-edmondson)
 
 ## v1.3.34 (patch)
 
 Changes since v1.3.33:
 
-- Add direct System.Memory and System.Threading.Tasks.Extensions references for netstandard TFMs to fix KTSU0001 [patch] ([@matt-edmondson](https://github.com/matt-edmondson))
+- Add direct System.Memory and System.Threading.Tasks.Extensions references for netstandard TFMs to fix KTSU0001 [patch] (matt-edmondson)
 
 ## v1.3.33 (patch)
 
 Changes since v1.3.32:
 
-- Sync .github\workflows\dotnet.yml ([@KtsuTools](https://github.com/KtsuTools))
+- Sync .github\workflows\dotnet.yml (KtsuTools)
 
 ## v1.3.33-pre.1 (prerelease)
 
 Changes since v1.3.32:
 
-- Sync .github\workflows\dotnet.yml ([@KtsuTools](https://github.com/KtsuTools))
+- Sync .github\workflows\dotnet.yml (KtsuTools)
 
 ## v1.3.32 (patch)
 
 Changes since v1.3.31:
 
-- Sync .editorconfig ([@KtsuTools](https://github.com/KtsuTools))
+- Sync .editorconfig (KtsuTools)
 
 ## v1.3.31 (patch)
 
 Changes since v1.3.30:
 
-- Sync .github\workflows\dotnet.yml ([@KtsuTools](https://github.com/KtsuTools))
+- Sync .github\workflows\dotnet.yml (KtsuTools)
 
 ## v1.3.30 (patch)
 
 Changes since v1.3.29:
 
-- Update ktsu.Sdk to version 2.25.0 and modify Polyfill package reference to use PrivateAssets ([@matt-edmondson](https://github.com/matt-edmondson))
-- chore: update icon.png ([@matt-edmondson](https://github.com/matt-edmondson))
+- Update ktsu.Sdk to version 2.25.0 and modify Polyfill package reference to use PrivateAssets (matt-edmondson)
+- chore: update icon.png (matt-edmondson)
 
 ## v1.3.29 (patch)
 
 Changes since v1.3.28:
 
-- chore: update ktsu.Sdk to 2.21.1 [patch] ([@matt-edmondson](https://github.com/matt-edmondson))
+- chore: update ktsu.Sdk to 2.21.1 [patch] (matt-edmondson)
 
 ## v1.3.28 (patch)
 
 Changes since v1.3.27:
 
-- Sync .github\workflows\dotnet.yml ([@ktsu[bot]](https://github.com/ktsu[bot]))
-- Sync global.json ([@ktsu[bot]](https://github.com/ktsu[bot]))
+- Sync .github\workflows\dotnet.yml (ktsu[bot])
+- Sync global.json (ktsu[bot])
 
 ## v1.3.27 (patch)
 
 Changes since v1.3.26:
 
-- Bump the ktsu group with 8 updates ([@dependabot[bot]](https://github.com/dependabot[bot]))
+- Bump the ktsu group with 8 updates (dependabot[bot])
 
 ## v1.3.26 (patch)
 
 Changes since v1.3.25:
 
-- Sync .github\workflows\update-sdks.yml ([@ktsu[bot]](https://github.com/ktsu[bot]))
-- Sync .github\workflows\dotnet.yml ([@ktsu[bot]](https://github.com/ktsu[bot]))
-- Sync .github\workflows\dependabot-merge.yml ([@ktsu[bot]](https://github.com/ktsu[bot]))
-- Sync .gitattributes ([@ktsu[bot]](https://github.com/ktsu[bot]))
+- Sync .github\workflows\update-sdks.yml (ktsu[bot])
+- Sync .github\workflows\dotnet.yml (ktsu[bot])
+- Sync .github\workflows\dependabot-merge.yml (ktsu[bot])
+- Sync .gitattributes (ktsu[bot])
 
 ## v1.3.25 (patch)
 
 Changes since v1.3.24:
 
-- Bump MSTest.Sdk from 4.3.2 to 4.3.3 ([@dependabot[bot]](https://github.com/dependabot[bot]))
+- Bump MSTest.Sdk from 4.3.2 to 4.3.3 (dependabot[bot])
 
 ## v1.3.24 (patch)
 
 Changes since v1.3.23:
 
-- Bump the ktsu group with 8 updates ([@dependabot[bot]](https://github.com/dependabot[bot]))
+- Bump the ktsu group with 8 updates (dependabot[bot])
 
 ## v1.3.23 (patch)
 
 Changes since v1.3.22:
 
-- Bump Polyfill from 10.11.2 to 11.0.1 ([@dependabot[bot]](https://github.com/dependabot[bot]))
+- Bump Polyfill from 10.11.2 to 11.0.1 (dependabot[bot])
 
 ## v1.3.22 (patch)
 
 Changes since v1.3.21:
 
-- Bump MSTest.Sdk from 4.3.0 to 4.3.2 ([@dependabot[bot]](https://github.com/dependabot[bot]))
+- Bump MSTest.Sdk from 4.3.0 to 4.3.2 (dependabot[bot])
 
 ## v1.3.21 (patch)
 
 Changes since v1.3.20:
 
-- Bump MSTest.Sdk from 4.2.3 to 4.3.0 ([@dependabot[bot]](https://github.com/dependabot[bot]))
+- Bump MSTest.Sdk from 4.2.3 to 4.3.0 (dependabot[bot])
 
 ## v1.3.20 (patch)
 
 Changes since v1.3.19:
 
-- Bump the ktsu group with 8 updates ([@dependabot[bot]](https://github.com/dependabot[bot]))
+- Bump the ktsu group with 8 updates (dependabot[bot])
 
 ## v1.3.19 (patch)
 
 Changes since v1.3.18:
 
-- Bump Polyfill from 10.11.1 to 10.11.2 ([@dependabot[bot]](https://github.com/dependabot[bot]))
+- Bump Polyfill from 10.11.1 to 10.11.2 (dependabot[bot])
 
 ## v1.3.18 (patch)
 
 Changes since v1.3.17:
 
-- Bump Polyfill from 10.11.0 to 10.11.1 ([@dependabot[bot]](https://github.com/dependabot[bot]))
-- Bump the ktsu group with 8 updates ([@dependabot[bot]](https://github.com/dependabot[bot]))
+- Bump Polyfill from 10.11.0 to 10.11.1 (dependabot[bot])
+- Bump the ktsu group with 8 updates (dependabot[bot])
 
 ## v1.3.17 (patch)
 
 Changes since v1.3.16:
 
-- Merge remote-tracking branch 'refs/remotes/origin/main' ([@ktsu[bot]](https://github.com/ktsu[bot]))
-- Sync .github\workflows\dotnet.yml ([@ktsu[bot]](https://github.com/ktsu[bot]))
-- Sync global.json ([@ktsu[bot]](https://github.com/ktsu[bot]))
+- Merge remote-tracking branch 'refs/remotes/origin/main' (ktsu[bot])
+- Sync .github\workflows\dotnet.yml (ktsu[bot])
+- Sync global.json (ktsu[bot])
 
 ## v1.3.16 (patch)
 
 Changes since v1.3.15:
 
-- chore: remove unused SourceLink package versions ([@matt-edmondson](https://github.com/matt-edmondson))
-- chore: remove SourceLink package references from project ([@matt-edmondson](https://github.com/matt-edmondson))
+- chore: remove unused SourceLink package versions (matt-edmondson)
+- chore: remove SourceLink package references from project (matt-edmondson)
 
 ## v1.3.15 (patch)
 
 Changes since v1.3.14:
 
-- Sync .github\workflows\dotnet.yml ([@ktsu[bot]](https://github.com/ktsu[bot]))
-- Sync .github\dependabot.yml ([@ktsu[bot]](https://github.com/ktsu[bot]))
-- Sync icon.png ([@ktsu[bot]](https://github.com/ktsu[bot]))
-- Sync .gitignore ([@ktsu[bot]](https://github.com/ktsu[bot]))
-- Sync .gitattributes ([@ktsu[bot]](https://github.com/ktsu[bot]))
-- Sync global.json ([@ktsu[bot]](https://github.com/ktsu[bot]))
-- Bump Polyfill from 10.10.0 to 10.11.0 ([@dependabot[bot]](https://github.com/dependabot[bot]))
+- Sync .github\workflows\dotnet.yml (ktsu[bot])
+- Sync .github\dependabot.yml (ktsu[bot])
+- Sync icon.png (ktsu[bot])
+- Sync .gitignore (ktsu[bot])
+- Sync .gitattributes (ktsu[bot])
+- Sync global.json (ktsu[bot])
+- Bump Polyfill from 10.10.0 to 10.11.0 (dependabot[bot])
 
 ## v1.3.14 (patch)
 
 Changes since v1.3.13:
 
-- Bump the ktsu group with 8 updates ([@dependabot[bot]](https://github.com/dependabot[bot]))
+- Bump the ktsu group with 8 updates (dependabot[bot])
 
 ## v1.3.13 (patch)
 
 Changes since v1.3.12:
 
-- Bump Polyfill from 10.8.1 to 10.10.0 ([@dependabot[bot]](https://github.com/dependabot[bot]))
-- Bump the ktsu group with 8 updates ([@dependabot[bot]](https://github.com/dependabot[bot]))
+- Bump Polyfill from 10.8.1 to 10.10.0 (dependabot[bot])
+- Bump the ktsu group with 8 updates (dependabot[bot])
 
 ## v1.3.12 (patch)
 
 Changes since v1.3.11:
 
-- Sync .github\workflows\dotnet.yml ([@ktsu[bot]](https://github.com/ktsu[bot]))
-- Sync global.json ([@ktsu[bot]](https://github.com/ktsu[bot]))
+- Sync .github\workflows\dotnet.yml (ktsu[bot])
+- Sync global.json (ktsu[bot])
 
 ## v1.3.11 (patch)
 
 Changes since v1.3.10:
 
-- Add TAGS.md with NuGet package tags ([@matt-edmondson](https://github.com/matt-edmondson))
-- Sync .github\workflows\dotnet.yml ([@KtsuTools](https://github.com/KtsuTools))
+- Add TAGS.md with NuGet package tags (matt-edmondson)
+- Sync .github\workflows\dotnet.yml (KtsuTools)
 
 ## v1.3.11-pre.1 (prerelease)
 
 Changes since v1.3.10:
 
-- Sync .github\workflows\dotnet.yml ([@KtsuTools](https://github.com/KtsuTools))
+- Sync .github\workflows\dotnet.yml (KtsuTools)
 
 ## v1.3.10 (patch)
 
 Changes since v1.3.9:
 
-- Merge remote-tracking branch 'refs/remotes/origin/main' ([@ktsu[bot]](https://github.com/ktsu[bot]))
-- Sync .github\workflows\dotnet.yml ([@ktsu[bot]](https://github.com/ktsu[bot]))
-- Sync .github\workflows\dotnet.yml ([@ktsu[bot]](https://github.com/ktsu[bot]))
-- Sync .github\workflows\dotnet.yml ([@ktsu[bot]](https://github.com/ktsu[bot]))
-- Sync .github\workflows\dotnet.yml ([@ktsu[bot]](https://github.com/ktsu[bot]))
+- Merge remote-tracking branch 'refs/remotes/origin/main' (ktsu[bot])
+- Sync .github\workflows\dotnet.yml (ktsu[bot])
+- Sync .github\workflows\dotnet.yml (ktsu[bot])
+- Sync .github\workflows\dotnet.yml (ktsu[bot])
+- Sync .github\workflows\dotnet.yml (ktsu[bot])
 
 ## v1.3.10-pre.1 (prerelease)
 
 Changes since v1.3.9:
 
-- Sync .github\workflows\dotnet.yml ([@ktsu[bot]](https://github.com/ktsu[bot]))
-- Sync .github\workflows\dotnet.yml ([@ktsu[bot]](https://github.com/ktsu[bot]))
-- Sync .github\workflows\dotnet.yml ([@ktsu[bot]](https://github.com/ktsu[bot]))
+- Sync .github\workflows\dotnet.yml (ktsu[bot])
+- Sync .github\workflows\dotnet.yml (ktsu[bot])
+- Sync .github\workflows\dotnet.yml (ktsu[bot])
 
 ## v1.3.9 (patch)
 
 Changes since v1.3.8:
 
-- Remove legacy build scripts ([@matt-edmondson](https://github.com/matt-edmondson))
+- Remove legacy build scripts (matt-edmondson)
 
 ## v1.3.8 (patch)
 
 Changes since v1.3.7:
 
-- Sync .github\workflows\dotnet.yml ([@ktsu[bot]](https://github.com/ktsu[bot]))
-- Sync global.json ([@ktsu[bot]](https://github.com/ktsu[bot]))
-- Merge remote-tracking branch 'refs/remotes/origin/main' ([@ktsu[bot]](https://github.com/ktsu[bot]))
-- Sync scripts\update-winget-manifests.ps1 ([@ktsu[bot]](https://github.com/ktsu[bot]))
-- Sync scripts\update-winget-manifests.ps1 ([@ktsu[bot]](https://github.com/ktsu[bot]))
-- Sync scripts\PSBuild.psm1 ([@ktsu[bot]](https://github.com/ktsu[bot]))
-- Sync global.json ([@ktsu[bot]](https://github.com/ktsu[bot]))
-- Merge remote-tracking branch 'refs/remotes/origin/main' ([@ktsu[bot]](https://github.com/ktsu[bot]))
-- Sync scripts\PSBuild.psm1 ([@ktsu[bot]](https://github.com/ktsu[bot]))
-- Sync scripts\PSBuild.psm1 ([@ktsu[bot]](https://github.com/ktsu[bot]))
-- Sync global.json ([@ktsu[bot]](https://github.com/ktsu[bot]))
-- Merge remote-tracking branch 'refs/remotes/origin/main' ([@ktsu[bot]](https://github.com/ktsu[bot]))
-- Sync global.json ([@ktsu[bot]](https://github.com/ktsu[bot]))
-- Merge remote-tracking branch 'refs/remotes/origin/main' ([@ktsu[bot]](https://github.com/ktsu[bot]))
-- Sync global.json ([@ktsu[bot]](https://github.com/ktsu[bot]))
-- Sync COPYRIGHT.md ([@ktsu[bot]](https://github.com/ktsu[bot]))
-- Merge remote-tracking branch 'refs/remotes/origin/main' ([@ktsu[bot]](https://github.com/ktsu[bot]))
-- Sync scripts\PSBuild.psm1 ([@ktsu[bot]](https://github.com/ktsu[bot]))
-- Sync scripts\update-winget-manifests.ps1 ([@ktsu[bot]](https://github.com/ktsu[bot]))
-- Sync global.json ([@ktsu[bot]](https://github.com/ktsu[bot]))
-- Sync COPYRIGHT.md ([@ktsu[bot]](https://github.com/ktsu[bot]))
+- Sync .github\workflows\dotnet.yml (ktsu[bot])
+- Sync global.json (ktsu[bot])
+- Merge remote-tracking branch 'refs/remotes/origin/main' (ktsu[bot])
+- Sync scripts\update-winget-manifests.ps1 (ktsu[bot])
+- Sync scripts\update-winget-manifests.ps1 (ktsu[bot])
+- Sync scripts\PSBuild.psm1 (ktsu[bot])
+- Sync global.json (ktsu[bot])
+- Merge remote-tracking branch 'refs/remotes/origin/main' (ktsu[bot])
+- Sync scripts\PSBuild.psm1 (ktsu[bot])
+- Sync scripts\PSBuild.psm1 (ktsu[bot])
+- Sync global.json (ktsu[bot])
+- Merge remote-tracking branch 'refs/remotes/origin/main' (ktsu[bot])
+- Sync global.json (ktsu[bot])
+- Merge remote-tracking branch 'refs/remotes/origin/main' (ktsu[bot])
+- Sync global.json (ktsu[bot])
+- Sync COPYRIGHT.md (ktsu[bot])
+- Merge remote-tracking branch 'refs/remotes/origin/main' (ktsu[bot])
+- Sync scripts\PSBuild.psm1 (ktsu[bot])
+- Sync scripts\update-winget-manifests.ps1 (ktsu[bot])
+- Sync global.json (ktsu[bot])
+- Sync COPYRIGHT.md (ktsu[bot])
 
 ## v1.3.8-pre.7 (prerelease)
 
 Changes since v1.3.8-pre.6:
 
-- Merge remote-tracking branch 'refs/remotes/origin/main' ([@ktsu[bot]](https://github.com/ktsu[bot]))
-- Sync scripts\update-winget-manifests.ps1 ([@ktsu[bot]](https://github.com/ktsu[bot]))
+- Merge remote-tracking branch 'refs/remotes/origin/main' (ktsu[bot])
+- Sync scripts\update-winget-manifests.ps1 (ktsu[bot])
 
 ## v1.3.8-pre.6 (prerelease)
 
 Changes since v1.3.8-pre.5:
 
-- Sync scripts\update-winget-manifests.ps1 ([@ktsu[bot]](https://github.com/ktsu[bot]))
-- Sync scripts\PSBuild.psm1 ([@ktsu[bot]](https://github.com/ktsu[bot]))
-- Sync global.json ([@ktsu[bot]](https://github.com/ktsu[bot]))
+- Sync scripts\update-winget-manifests.ps1 (ktsu[bot])
+- Sync scripts\PSBuild.psm1 (ktsu[bot])
+- Sync global.json (ktsu[bot])
 
 ## v1.3.8-pre.5 (prerelease)
 
 Changes since v1.3.8-pre.4:
 
-- Merge remote-tracking branch 'refs/remotes/origin/main' ([@ktsu[bot]](https://github.com/ktsu[bot]))
-- Sync scripts\PSBuild.psm1 ([@ktsu[bot]](https://github.com/ktsu[bot]))
-- Sync scripts\PSBuild.psm1 ([@ktsu[bot]](https://github.com/ktsu[bot]))
-- Sync global.json ([@ktsu[bot]](https://github.com/ktsu[bot]))
+- Merge remote-tracking branch 'refs/remotes/origin/main' (ktsu[bot])
+- Sync scripts\PSBuild.psm1 (ktsu[bot])
+- Sync scripts\PSBuild.psm1 (ktsu[bot])
+- Sync global.json (ktsu[bot])
 
 ## v1.3.8-pre.4 (prerelease)
 
 Changes since v1.3.8-pre.3:
 
-- Merge remote-tracking branch 'refs/remotes/origin/main' ([@ktsu[bot]](https://github.com/ktsu[bot]))
-- Sync global.json ([@ktsu[bot]](https://github.com/ktsu[bot]))
+- Merge remote-tracking branch 'refs/remotes/origin/main' (ktsu[bot])
+- Sync global.json (ktsu[bot])
 
 ## v1.3.8-pre.3 (prerelease)
 
 Changes since v1.3.8-pre.2:
 
-- Merge remote-tracking branch 'refs/remotes/origin/main' ([@ktsu[bot]](https://github.com/ktsu[bot]))
-- Sync global.json ([@ktsu[bot]](https://github.com/ktsu[bot]))
-- Sync COPYRIGHT.md ([@ktsu[bot]](https://github.com/ktsu[bot]))
+- Merge remote-tracking branch 'refs/remotes/origin/main' (ktsu[bot])
+- Sync global.json (ktsu[bot])
+- Sync COPYRIGHT.md (ktsu[bot])
 
 ## v1.3.8-pre.2 (prerelease)
 
 Changes since v1.3.8-pre.1:
 
-- Merge remote-tracking branch 'refs/remotes/origin/main' ([@ktsu[bot]](https://github.com/ktsu[bot]))
-- Sync scripts\PSBuild.psm1 ([@ktsu[bot]](https://github.com/ktsu[bot]))
+- Merge remote-tracking branch 'refs/remotes/origin/main' (ktsu[bot])
+- Sync scripts\PSBuild.psm1 (ktsu[bot])
 
 ## v1.3.8-pre.1 (prerelease)
 
 Changes since v1.3.7:
 
-- Sync scripts\update-winget-manifests.ps1 ([@ktsu[bot]](https://github.com/ktsu[bot]))
-- Sync global.json ([@ktsu[bot]](https://github.com/ktsu[bot]))
-- Sync COPYRIGHT.md ([@ktsu[bot]](https://github.com/ktsu[bot]))
+- Sync scripts\update-winget-manifests.ps1 (ktsu[bot])
+- Sync global.json (ktsu[bot])
+- Sync COPYRIGHT.md (ktsu[bot])
 
 ## v1.3.7 (patch)
 
 Changes since v1.3.6:
 
-- Add compatibility suppressions for new .NET versions and dynamic member types ([@matt-edmondson](https://github.com/matt-edmondson))
+- Add compatibility suppressions for new .NET versions and dynamic member types (matt-edmondson)
 
 ## v1.3.6 (patch)
 
 Changes since v1.3.5:
 
-- Remove .github\workflows\project.yml ([@matt-edmondson](https://github.com/matt-edmondson))
+- Remove .github\workflows\project.yml (matt-edmondson)
 
 ## v1.3.6-pre.1 (prerelease)
 
 Changes since v1.3.5:
 
-- Merge remote-tracking branch 'refs/remotes/origin/main' ([@ktsu[bot]](https://github.com/ktsu[bot]))
-- Sync global.json ([@ktsu[bot]](https://github.com/ktsu[bot]))
-- Merge remote-tracking branch 'refs/remotes/origin/main' ([@ktsu[bot]](https://github.com/ktsu[bot]))
-- Sync .github\workflows\dotnet.yml ([@ktsu[bot]](https://github.com/ktsu[bot]))
-- Sync .gitignore ([@ktsu[bot]](https://github.com/ktsu[bot]))
+- Merge remote-tracking branch 'refs/remotes/origin/main' (ktsu[bot])
+- Sync global.json (ktsu[bot])
+- Merge remote-tracking branch 'refs/remotes/origin/main' (ktsu[bot])
+- Sync .github\workflows\dotnet.yml (ktsu[bot])
+- Sync .gitignore (ktsu[bot])
 
 ## v1.3.5 (patch)
 
 Changes since v1.3.4:
 
-- Migrate to dotnet 10 ([@matt-edmondson](https://github.com/matt-edmondson))
+- Migrate to dotnet 10 (matt-edmondson)
 
 ## v1.3.4 (patch)
 
 Changes since v1.3.3:
 
-- Remove caching configuration for .NET setup in workflow ([@matt-edmondson](https://github.com/matt-edmondson))
-- Add CLAUDE.md for project guidance and documentation ([@matt-edmondson](https://github.com/matt-edmondson))
+- Remove caching configuration for .NET setup in workflow (matt-edmondson)
+- Add CLAUDE.md for project guidance and documentation (matt-edmondson)
 
 ## v1.3.4-pre.4 (prerelease)
 
 Changes since v1.3.4-pre.3:
 
-- Sync scripts\update-winget-manifests.ps1 ([@ktsu[bot]](https://github.com/ktsu[bot]))
+- Sync scripts\update-winget-manifests.ps1 (ktsu[bot])
 
 ## v1.3.4-pre.3 (prerelease)
 
 Changes since v1.3.4-pre.2:
 
-- Sync .github\workflows\dotnet.yml ([@ktsu[bot]](https://github.com/ktsu[bot]))
+- Sync .github\workflows\dotnet.yml (ktsu[bot])
 
 ## v1.3.4-pre.2 (prerelease)
 
 Changes since v1.3.4-pre.1:
 
-- Sync scripts\PSBuild.psm1 ([@ktsu[bot]](https://github.com/ktsu[bot]))
-- Sync .github\workflows\dotnet.yml ([@ktsu[bot]](https://github.com/ktsu[bot]))
+- Sync scripts\PSBuild.psm1 (ktsu[bot])
+- Sync .github\workflows\dotnet.yml (ktsu[bot])
 
 ## v1.3.4-pre.1 (prerelease)
 
 Changes since v1.3.3:
 
-- Sync scripts\PSBuild.psm1 ([@ktsu[bot]](https://github.com/ktsu[bot]))
-- Sync scripts\update-winget-manifests.ps1 ([@ktsu[bot]](https://github.com/ktsu[bot]))
-- Sync .github\workflows\dotnet.yml ([@ktsu[bot]](https://github.com/ktsu[bot]))
-- Sync .gitattributes ([@ktsu[bot]](https://github.com/ktsu[bot]))
-- Sync .runsettings ([@ktsu[bot]](https://github.com/ktsu[bot]))
+- Sync scripts\PSBuild.psm1 (ktsu[bot])
+- Sync scripts\update-winget-manifests.ps1 (ktsu[bot])
+- Sync .github\workflows\dotnet.yml (ktsu[bot])
+- Sync .gitattributes (ktsu[bot])
+- Sync .runsettings (ktsu[bot])
 
 ## v1.3.3 (patch)
 
 Changes since v1.3.2:
 
-- Convert to PolySharp ([@Damon3000s](https://github.com/Damon3000s))
+- Convert to PolySharp (Damon3000s)
 
 ## v1.3.2 (patch)
 
 Changes since v1.3.1:
 
-- Add CompatibilitySuppressions.xml for .NET compatibility diagnostics and update exception handling in IntervalAction class. Introduce new tests for zero and negative intervals, and ensure Stop method is idempotent. ([@matt-edmondson](https://github.com/matt-edmondson))
-- Add configuration files for package management and CI/CD workflows ([@matt-edmondson](https://github.com/matt-edmondson))
-- Update configuration files and scripts for improved build and test processes ([@matt-edmondson](https://github.com/matt-edmondson))
+- Add CompatibilitySuppressions.xml for .NET compatibility diagnostics and update exception handling in IntervalAction class. Introduce new tests for zero and negative intervals, and ensure Stop method is idempotent. (matt-edmondson)
+- Add configuration files for package management and CI/CD workflows (matt-edmondson)
+- Update configuration files and scripts for improved build and test processes (matt-edmondson)
 
 ## v1.3.2-pre.17 (prerelease)
 
 Changes since v1.3.2-pre.16:
 
-- Merge remote-tracking branch 'refs/remotes/origin/main' ([@ktsu[bot]](https://github.com/ktsu[bot]))
-- Sync scripts\PSBuild.psm1 ([@ktsu[bot]](https://github.com/ktsu[bot]))
-- Sync .editorconfig ([@ktsu[bot]](https://github.com/ktsu[bot]))
-- Sync .gitattributes ([@ktsu[bot]](https://github.com/ktsu[bot]))
-- Sync .gitignore ([@ktsu[bot]](https://github.com/ktsu[bot]))
-- Sync .mailmap ([@ktsu[bot]](https://github.com/ktsu[bot]))
-- Sync .runsettings ([@ktsu[bot]](https://github.com/ktsu[bot]))
+- Merge remote-tracking branch 'refs/remotes/origin/main' (ktsu[bot])
+- Sync scripts\PSBuild.psm1 (ktsu[bot])
+- Sync .editorconfig (ktsu[bot])
+- Sync .gitattributes (ktsu[bot])
+- Sync .gitignore (ktsu[bot])
+- Sync .mailmap (ktsu[bot])
+- Sync .runsettings (ktsu[bot])
 
 ## v1.3.2-pre.16 (prerelease)
 
 Changes since v1.3.2-pre.15:
 
-- Sync scripts\PSBuild.psm1 ([@ktsu[bot]](https://github.com/ktsu[bot]))
-- Sync .editorconfig ([@ktsu[bot]](https://github.com/ktsu[bot]))
-- Sync .gitattributes ([@ktsu[bot]](https://github.com/ktsu[bot]))
-- Sync .gitignore ([@ktsu[bot]](https://github.com/ktsu[bot]))
-- Sync .mailmap ([@ktsu[bot]](https://github.com/ktsu[bot]))
-- Sync .runsettings ([@ktsu[bot]](https://github.com/ktsu[bot]))
+- Sync scripts\PSBuild.psm1 (ktsu[bot])
+- Sync .editorconfig (ktsu[bot])
+- Sync .gitattributes (ktsu[bot])
+- Sync .gitignore (ktsu[bot])
+- Sync .mailmap (ktsu[bot])
+- Sync .runsettings (ktsu[bot])
 
 ## v1.3.2-pre.15 (prerelease)
 
@@ -680,58 +681,58 @@ No significant changes detected since v1.3.2-pre.1.
 
 Changes since v1.3.1:
 
-- Sync scripts\PSBuild.psm1 ([@ktsu[bot]](https://github.com/ktsu[bot]))
+- Sync scripts\PSBuild.psm1 (ktsu[bot])
 
 ## v1.3.1 (patch)
 
 Changes since v1.3.0:
 
-- Remove Directory.Build.props and Directory.Build.targets files; add copyright notices to IntervalAction source files and tests; update variable declarations in tests for consistency. ([@matt-edmondson](https://github.com/matt-edmondson))
-- Enhance documentation and update project SDK references. Improved the library description for clarity and added detailed features and usage examples in README. Updated project files to use the latest SDK versions. ([@matt-edmondson](https://github.com/matt-edmondson))
+- Remove Directory.Build.props and Directory.Build.targets files; add copyright notices to IntervalAction source files and tests; update variable declarations in tests for consistency. (matt-edmondson)
+- Enhance documentation and update project SDK references. Improved the library description for clarity and added detailed features and usage examples in README. Updated project files to use the latest SDK versions. (matt-edmondson)
 
 ## v1.3.1-pre.2 (prerelease)
 
 Changes since v1.3.1-pre.1:
 
-- Sync .github\workflows\dotnet.yml ([@ktsu[bot]](https://github.com/ktsu[bot]))
-- Sync .editorconfig ([@ktsu[bot]](https://github.com/ktsu[bot]))
-- Sync .runsettings ([@ktsu[bot]](https://github.com/ktsu[bot]))
+- Sync .github\workflows\dotnet.yml (ktsu[bot])
+- Sync .editorconfig (ktsu[bot])
+- Sync .runsettings (ktsu[bot])
 
 ## v1.3.1-pre.1 (prerelease)
 
 Changes since v1.3.0:
 
-- Sync .editorconfig ([@ktsu[bot]](https://github.com/ktsu[bot]))
+- Sync .editorconfig (ktsu[bot])
 
 ## v1.3.0 (minor)
 
 Changes since v1.2.0:
 
-- Add LICENSE template ([@matt-edmondson](https://github.com/matt-edmondson))
+- Add LICENSE template (matt-edmondson)
 
 ## v1.2.1-pre.2 (prerelease)
 
 Changes since v1.2.1-pre.1:
 
-- Sync scripts\make-version.ps1 ([@ktsu[bot]](https://github.com/ktsu[bot]))
-- Sync scripts\make-changelog.ps1 ([@ktsu[bot]](https://github.com/ktsu[bot]))
+- Sync scripts\make-version.ps1 (ktsu[bot])
+- Sync scripts\make-changelog.ps1 (ktsu[bot])
 
 ## v1.2.1-pre.1 (prerelease)
 
 Changes since v1.2.0:
 
-- Sync scripts\make-version.ps1 ([@ktsu[bot]](https://github.com/ktsu[bot]))
-- Sync scripts\make-changelog.ps1 ([@ktsu[bot]](https://github.com/ktsu[bot]))
-- Sync .editorconfig ([@ktsu[bot]](https://github.com/ktsu[bot]))
-- Sync .gitignore ([@ktsu[bot]](https://github.com/ktsu[bot]))
-- Sync Directory.Build.targets ([@ktsu[bot]](https://github.com/ktsu[bot]))
+- Sync scripts\make-version.ps1 (ktsu[bot])
+- Sync scripts\make-changelog.ps1 (ktsu[bot])
+- Sync .editorconfig (ktsu[bot])
+- Sync .gitignore (ktsu[bot])
+- Sync Directory.Build.targets (ktsu[bot])
 
 ## v1.2.0 (minor)
 
 Changes since v1.1.0:
 
-- [minor] Update README.md ([@matt-edmondson](https://github.com/matt-edmondson))
-- Refactor IntervalAction constructor and Start method ([@matt-edmondson](https://github.com/matt-edmondson))
+- [minor] Update README.md (matt-edmondson)
+- Refactor IntervalAction constructor and Start method (matt-edmondson)
 
 ## v1.1.0 (major)
 
@@ -739,6 +740,6 @@ No significant changes detected since v0.1.0.
 
 ## v0.1.0 (minor)
 
-- Refactor IntervalAction constructor and Start method ([@matt-edmondson](https://github.com/matt-edmondson))
-- Initial commit ([@matt-edmondson](https://github.com/matt-edmondson))
+- Refactor IntervalAction constructor and Start method (matt-edmondson)
+- Initial commit (matt-edmondson)
 
