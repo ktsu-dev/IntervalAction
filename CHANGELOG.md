@@ -1,8 +1,10 @@
-## v1.6.1-pre.2 (prerelease)
+## v1.7.0 (minor)
 
-Changes since v1.6.1-pre.1:
+Changes since v1.6.0:
 
-- Bump Polyfill from 11.4.3 to 11.4.5 ([@dependabot[bot]](https://github.com/dependabot[bot]))
+- Assert that DisposeIsIdempotent leaves the instance disposed ([@Claude](https://github.com/Claude))
+- Move the Dispose tests ahead of the wall-clock test ([@Claude](https://github.com/Claude))
+- Implement IDisposable so a forgotten Stop() can be caught [minor] ([@Claude](https://github.com/Claude))
 
 ## v1.6.1-pre.1 (prerelease)
 
