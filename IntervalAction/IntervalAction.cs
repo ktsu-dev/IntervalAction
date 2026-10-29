@@ -239,7 +239,7 @@ public sealed class IntervalAction : IDisposable
 	/// A run that was dispatched but has not begun by the time this is called is skipped. A run that
 	/// had already begun is not waited for: use <see cref="StopAsync"/> to wait until it has finished.
 	/// </remarks>
-	public void Stop() => StopCore(out _);
+	public void Stop() => StopCore(out _, out _);
 
 	/// <summary>
 	/// Stops the polling of the action, then waits for the polling loop and any run of the action
@@ -264,25 +264,12 @@ public sealed class IntervalAction : IDisposable
 	/// </remarks>
 	public async Task StopAsync()
 	{
-		// A restart already pending when the stop lands is awaited too: it may be between deciding to
-		// start a loop and publishing it as PollingTask. One requested after the stop is not waited on.
-		StopCore(out Task pendingRestart);
-		await WaitAndDiscardOutcomeAsync(pendingRestart).ConfigureAwait(false);
-
-		Task pollingTask;
-		lock (Lock)
-		{
-			pollingTask = PollingTask;
-		}
+		// Only the loop and run this stop ended are waited on. A restart requested afterwards publishes a
+		// new loop, which polls until some later stop, so reading PollingTask again here could wait on
+		// it forever (ktsu-dev/IntervalAction#91).
+		StopCore(out Task pollingTask, out Task? actionTask);
 
 		await WaitAndDiscardOutcomeAsync(pollingTask).ConfigureAwait(false);
-
-		// The loop has exited, so it can no longer claim a new run: what is in ActionTask now is the last one
-		Task? actionTask;
-		lock (Lock)
-		{
-			actionTask = ActionTask;
-		}
 
 		if (actionTask is not null)
 		{
@@ -317,8 +304,17 @@ public sealed class IntervalAction : IDisposable
 	/// <summary>
 	/// Stops polling and cancels the running asynchronous action, if any.
 	/// </summary>
-	/// <param name="pendingRestart">The restart that was pending, or last completed, when the stop took effect.</param>
-	private void StopCore(out Task pendingRestart)
+	/// <param name="pollingTask">The polling loop the stop ended.</param>
+	/// <param name="actionTask">
+	/// The run the stopped loop had claimed, if any. It is the last one that loop can start, because
+	/// <see cref="TryRun(long)"/> refuses to claim a run once the stop has happened.
+	/// </param>
+	/// <remarks>
+	/// A restart pending at the time of the stop has either published its loop already, which is then
+	/// the one captured here, or will see the new <see cref="StopGeneration"/> and publish nothing,
+	/// because <see cref="RestartCoreAsync"/> checks the generation and publishes under the same lock.
+	/// </remarks>
+	private void StopCore(out Task pollingTask, out Task? actionTask)
 	{
 		CancellationTokenSource? actionCancellation;
 
@@ -327,7 +323,8 @@ public sealed class IntervalAction : IDisposable
 			StopGeneration++;
 			EndPolling();
 			actionCancellation = ActionCancellation;
-			pendingRestart = RestartGate;
+			pollingTask = PollingTask;
+			actionTask = ActionTask;
 		}
 
 		// Cancelled outside the lock, because cancelling runs the action's own token callbacks
@@ -401,16 +398,14 @@ public sealed class IntervalAction : IDisposable
 
 		await WaitAndDiscardOutcomeAsync(PollingTask).ConfigureAwait(false);
 
-		CancellationTokenSource cancellation = new();
-
 		lock (Lock)
 		{
 			if (StopGeneration != stopGeneration)
 			{
-				cancellation.Dispose();
 				return;
 			}
 
+			CancellationTokenSource cancellation = new();
 			ShouldPoll = true;
 			PollingCancellation = cancellation;
 
@@ -423,54 +418,65 @@ public sealed class IntervalAction : IDisposable
 				_ = ActionTask.Exception;
 				ActionTask = null;
 			}
-		}
 
-		PollingTask = Task.Run(async () =>
+			// Published under the same lock as the generation check, so a stop either sees this loop as
+			// PollingTask or makes this restart publish nothing
+			PollingTask = Task.Run(() => PollAsync(cancellation, stopGeneration), CancellationToken.None);
+		}
+	}
+
+	/// <summary>
+	/// The polling loop a restart starts: runs the action when it is due, then waits out the polling
+	/// interval, until polling is ended.
+	/// </summary>
+	/// <param name="cancellation">Cuts the polling delay short when polling is ended. Disposed on exit.</param>
+	/// <param name="stopGeneration">The value of <see cref="StopGeneration"/> the loop was started under.</param>
+	/// <returns>A task that completes when the loop exits.</returns>
+	private async Task PollAsync(CancellationTokenSource cancellation, long stopGeneration)
+	{
+		try
 		{
-			try
+			bool shouldPoll;
+
+			lock (Lock)
 			{
-				bool shouldPoll;
+				shouldPoll = ShouldPoll;
+			}
+
+			while (shouldPoll)
+			{
+				// Passing the generation this loop was started under lets TryRun refuse to claim a run
+				// if Stop() lands between the ShouldPoll read above and the claim
+				TryRun(stopGeneration);
+
+				try
+				{
+					await WaitOutPollingIntervalAsync(cancellation.Token).ConfigureAwait(false);
+				}
+				catch (OperationCanceledException) when (cancellation.IsCancellationRequested)
+				{
+					// Stopped or restarted mid-delay: a normal exit, not a fault
+					break;
+				}
 
 				lock (Lock)
 				{
 					shouldPoll = ShouldPoll;
 				}
-
-				while (shouldPoll)
-				{
-					// Passing the generation this loop was started under lets TryRun refuse to claim a run
-					// if Stop() lands between the ShouldPoll read above and the claim
-					TryRun(stopGeneration);
-
-					try
-					{
-						await WaitOutPollingIntervalAsync(cancellation.Token).ConfigureAwait(false);
-					}
-					catch (OperationCanceledException) when (cancellation.IsCancellationRequested)
-					{
-						// Stopped or restarted mid-delay: a normal exit, not a fault
-						break;
-					}
-
-					lock (Lock)
-					{
-						shouldPoll = ShouldPoll;
-					}
-				}
 			}
-			finally
+		}
+		finally
+		{
+			lock (Lock)
 			{
-				lock (Lock)
+				if (PollingCancellation == cancellation)
 				{
-					if (PollingCancellation == cancellation)
-					{
-						PollingCancellation = null;
-					}
+					PollingCancellation = null;
 				}
-
-				cancellation.Dispose();
 			}
-		}, CancellationToken.None);
+
+			cancellation.Dispose();
+		}
 	}
 
 	/// <summary>

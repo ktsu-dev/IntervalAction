@@ -377,6 +377,72 @@ public class IntervalActionTests
 		Assert.AreEqual(0, startedAfterStop, outcome);
 	}
 
+	/// <summary>
+	/// A pause followed straight away by a resume. StopAsync() read PollingTask only after the stop, so
+	/// when the restart published its new loop first, StopAsync() waited on that loop, which polls until
+	/// some later stop, and never completed (ktsu-dev/IntervalAction#91).
+	/// </summary>
+	[TestMethod]
+	public async Task StopAsyncCompletesWhenARestartFollowsIt()
+	{
+		// Arrange: enough pool threads that StopAsync's continuation and the restart really do race
+		const int trials = 3000;
+		TimeSpan patience = TimeSpan.FromMilliseconds(500);
+		int stopsStillPending = 0;
+		int restartsThatNeverRan = 0;
+		ThreadPool.GetMinThreads(out int workerThreads, out int completionPortThreads);
+		ThreadPool.SetMinThreads(Math.Max(workerThreads, 32), Math.Max(completionPortThreads, 32));
+
+		try
+		{
+			for (int trial = 0; trial < trials; trial++)
+			{
+				int runs = 0;
+				using IntervalAction intervalAction = IntervalAction.Start(new()
+				{
+					PollingInterval = TimeSpan.FromMilliseconds(1),
+					ActionInterval = TimeSpan.FromMilliseconds(1),
+					Action = () => Interlocked.Increment(ref runs),
+				});
+
+				// Act: pause, then resume without waiting for the pause to be observed
+				Task stop = intervalAction.StopAsync();
+				await intervalAction.RestartAsync().ConfigureAwait(false);
+
+				if (await Task.WhenAny(stop, Task.Delay(patience)).ConfigureAwait(false) != stop)
+				{
+					stopsStillPending++;
+				}
+
+				// The restart was requested after the stop, so it must still be polling
+				int runsBefore = Volatile.Read(ref runs);
+				Stopwatch waited = Stopwatch.StartNew();
+				while (Volatile.Read(ref runs) == runsBefore && waited.Elapsed < patience)
+				{
+					await Task.Delay(1).ConfigureAwait(false);
+				}
+
+				if (Volatile.Read(ref runs) == runsBefore)
+				{
+					restartsThatNeverRan++;
+				}
+
+				// A stop that hung on the new loop is released by stopping that loop too
+				await intervalAction.StopAsync().ConfigureAwait(false);
+				await stop.ConfigureAwait(false);
+			}
+		}
+		finally
+		{
+			ThreadPool.SetMinThreads(workerThreads, completionPortThreads);
+		}
+
+		// Assert
+		string outcome = $"Of {trials} pause-then-resume trials, StopAsync was still pending after {patience.TotalMilliseconds} ms in {stopsStillPending}, and the resumed action never ran in {restartsThatNeverRan}.";
+		Assert.AreEqual(0, stopsStillPending, outcome);
+		Assert.AreEqual(0, restartsThatNeverRan, outcome);
+	}
+
 	[TestMethod]
 	public async Task RethrowExceptionsThrowsException()
 	{
