@@ -139,6 +139,21 @@ public class IntervalActionTests
 	}
 
 	[TestMethod]
+	[DataRow(2)]
+	[DataRow(-1)]
+	public void StartUndefinedIntervalTypeThrows(int intervalType)
+	{
+		IntervalActionOptions options = new()
+		{
+			PollingInterval = TimeSpan.FromMilliseconds(100),
+			ActionInterval = TimeSpan.FromSeconds(1),
+			Action = () => { },
+			IntervalType = (IntervalType)intervalType
+		};
+		Assert.ThrowsExactly<ArgumentOutOfRangeException>(() => IntervalAction.Start(options));
+	}
+
+	[TestMethod]
 	[DataRow(1L)] // Task.Delay truncates this to zero and spins a core
 	[DataRow(5_000L)] // 500 microseconds
 	[DataRow(9_999L)] // just under a millisecond
