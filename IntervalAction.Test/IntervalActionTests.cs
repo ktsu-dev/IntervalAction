@@ -1114,7 +1114,12 @@ public class IntervalActionTests
 	}
 
 	[TestMethod]
-	public async Task EqualPollingAndActionIntervalsSkipNoTicks()
+	[DataRow(IntervalType.FromLastStart, 0)]
+	[DataRow(IntervalType.FromLastStart, 20)]
+	[DataRow(IntervalType.FromLastCompletion, 0)]
+	[DataRow(IntervalType.FromLastCompletion, 5)]
+	[DataRow(IntervalType.FromLastCompletion, 20)]
+	public async Task EqualPollingAndActionIntervalsSkipNoTicks(IntervalType intervalType, int workMilliseconds)
 	{
 		Stopwatch stopwatch = Stopwatch.StartNew();
 		ConcurrentQueue<long> runTimes = new();
@@ -1124,8 +1129,12 @@ public class IntervalActionTests
 		{
 			PollingInterval = interval,
 			ActionInterval = interval,
-			IntervalType = IntervalType.FromLastStart,
-			Action = () => runTimes.Enqueue(stopwatch.ElapsedMilliseconds),
+			IntervalType = intervalType,
+			Action = () =>
+			{
+				runTimes.Enqueue(stopwatch.ElapsedMilliseconds);
+				Thread.Sleep(workMilliseconds);
+			},
 		});
 
 		await Task.Delay(interval * 10).ConfigureAwait(false);

@@ -40,6 +40,16 @@ public sealed class IntervalAction : IDisposable
 	internal Func<long> GetTimestamp { get; set; } = Stopwatch.GetTimestamp;
 
 	/// <summary>
+	/// Gets or sets the real <see cref="Stopwatch"/> timestamp at which the last FromLastCompletion run
+	/// finished, or <see langword="null"/> if none has.
+	/// </summary>
+	/// <remarks>
+	/// Read by the polling wait, which sleeps on the real clock, so it is kept apart from
+	/// <see cref="LastRunTimestamp"/>, which comes from the replaceable <see cref="GetTimestamp"/>.
+	/// </remarks>
+	internal long? LastCompletionTimestamp { get; set; }
+
+	/// <summary>
 	/// The shortest polling interval <see cref="Task.Delay(TimeSpan)"/> waits out rather than truncating to zero.
 	/// </summary>
 	private static readonly TimeSpan MinimumPollingInterval = TimeSpan.FromMilliseconds(1);
@@ -480,15 +490,25 @@ public sealed class IntervalAction : IDisposable
 	}
 
 	/// <summary>
-	/// Waits at least <see cref="PollingInterval"/>, as measured on a monotonic clock.
+	/// Waits at least <see cref="PollingInterval"/>, as measured on a monotonic clock, and in
+	/// FromLastCompletion mode at least <see cref="PollingInterval"/> past a run that finishes meanwhile.
 	/// </summary>
 	/// <param name="cancellationToken">Ends the wait early.</param>
 	/// <returns>A task that completes once the whole polling interval has passed.</returns>
 	/// <remarks>
+	/// <para>
 	/// <see cref="Task.Delay(TimeSpan, CancellationToken)"/> counts whole system timer ticks, so it can
 	/// wake up to one tick early. With the action interval a multiple of the polling interval, that
 	/// early tick lands just short of the run being due, and the run slips a whole polling interval.
 	/// Topping the wait up to the full interval keeps the tick from arriving before the run is due.
+	/// </para>
+	/// <para>
+	/// A FromLastCompletion run is stamped when it finishes, but the wait starts as soon as the run is
+	/// dispatched. Measured from the dispatch, the next tick came out short of the run being due by
+	/// however long the run took, so with equal polling and action intervals every run slipped a whole
+	/// polling interval and the action ran at half the requested rate. The wait therefore also lasts
+	/// until a full polling interval has passed since a run that finishes while it is in progress.
+	/// </para>
 	/// </remarks>
 	private async Task WaitOutPollingIntervalAsync(CancellationToken cancellationToken)
 	{
@@ -498,7 +518,18 @@ public sealed class IntervalAction : IDisposable
 		while (remaining > TimeSpan.Zero)
 		{
 			await Task.Delay(TimeSpan.FromMilliseconds(Math.Ceiling(remaining.TotalMilliseconds)), cancellationToken).ConfigureAwait(false);
-			remaining = PollingInterval - GetElapsedTime(start, Stopwatch.GetTimestamp());
+
+			long anchor = start;
+
+			lock (Lock)
+			{
+				if (LastCompletionTimestamp is long completedAt && completedAt > anchor)
+				{
+					anchor = completedAt;
+				}
+			}
+
+			remaining = PollingInterval - GetElapsedTime(anchor, Stopwatch.GetTimestamp());
 		}
 	}
 
@@ -728,6 +759,7 @@ public sealed class IntervalAction : IDisposable
 		{
 			LastRunTime = DateTimeOffset.Now;
 			LastRunTimestamp = GetTimestamp();
+			LastCompletionTimestamp = Stopwatch.GetTimestamp();
 		}
 	}
 
