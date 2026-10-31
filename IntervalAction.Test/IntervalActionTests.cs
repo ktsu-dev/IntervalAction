@@ -801,6 +801,71 @@ public class IntervalActionTests
 	}
 
 	[TestMethod]
+	[DataRow(IntervalType.FromLastCompletion)]
+	[DataRow(IntervalType.FromLastStart)]
+	public async Task FailedRunStillCountsTowardTheIntervalAfterRestart(IntervalType intervalType)
+	{
+		// Arrange: an action that always fails, with an interval far longer than the test
+		int runs = 0;
+		IntervalActionOptions options = new()
+		{
+			PollingInterval = TimeSpan.FromMilliseconds(10),
+			ActionInterval = TimeSpan.FromHours(1),
+			IntervalType = intervalType,
+			Action = () =>
+			{
+				Interlocked.Increment(ref runs);
+				throw new InvalidOperationException("Test exception message");
+			},
+		};
+
+		IntervalAction intervalAction = IntervalAction.Start(options);
+		await WaitForPollingToFaultAsync(intervalAction).ConfigureAwait(false);
+		_ = Assert.ThrowsExactly<InvalidOperationException>(intervalAction.RethrowExceptions);
+
+		// Act: the documented recovery, which must not let the failing action run again before the interval
+		await intervalAction.RestartAsync().ConfigureAwait(false);
+		await Task.Delay(200).ConfigureAwait(false);
+		intervalAction.Stop();
+
+		// Assert
+		Assert.AreEqual(1, Volatile.Read(ref runs), "A failed run should still count toward the action interval.");
+	}
+
+	[TestMethod]
+	[DataRow(IntervalType.FromLastCompletion)]
+	[DataRow(IntervalType.FromLastStart)]
+	public async Task FailedAsyncRunStillCountsTowardTheIntervalAfterRestart(IntervalType intervalType)
+	{
+		// Arrange: an async action that always fails, with an interval far longer than the test
+		int runs = 0;
+		IntervalActionOptions options = new()
+		{
+			PollingInterval = TimeSpan.FromMilliseconds(10),
+			ActionInterval = TimeSpan.FromHours(1),
+			IntervalType = intervalType,
+			AsyncAction = async _ =>
+			{
+				Interlocked.Increment(ref runs);
+				await Task.Yield();
+				throw new InvalidOperationException("Test exception message");
+			},
+		};
+
+		IntervalAction intervalAction = IntervalAction.Start(options);
+		await WaitForPollingToFaultAsync(intervalAction).ConfigureAwait(false);
+		_ = Assert.ThrowsExactly<InvalidOperationException>(intervalAction.RethrowExceptions);
+
+		// Act
+		await intervalAction.RestartAsync().ConfigureAwait(false);
+		await Task.Delay(200).ConfigureAwait(false);
+		intervalAction.Stop();
+
+		// Assert
+		Assert.AreEqual(1, Volatile.Read(ref runs), "A failed async run should still count toward the action interval.");
+	}
+
+	[TestMethod]
 	public async Task RestartDoesNotRethrowTheStaleActionException()
 	{
 		// Arrange
