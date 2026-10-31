@@ -139,6 +139,21 @@ public class IntervalActionTests
 	}
 
 	[TestMethod]
+	[DataRow(2)]
+	[DataRow(-1)]
+	public void StartUndefinedIntervalTypeThrows(int intervalType)
+	{
+		IntervalActionOptions options = new()
+		{
+			PollingInterval = TimeSpan.FromMilliseconds(100),
+			ActionInterval = TimeSpan.FromSeconds(1),
+			Action = () => { },
+			IntervalType = (IntervalType)intervalType
+		};
+		Assert.ThrowsExactly<ArgumentOutOfRangeException>(() => IntervalAction.Start(options));
+	}
+
+	[TestMethod]
 	[DataRow(1L)] // Task.Delay truncates this to zero and spins a core
 	[DataRow(5_000L)] // 500 microseconds
 	[DataRow(9_999L)] // just under a millisecond
@@ -1118,7 +1133,9 @@ public class IntervalActionTests
 	{
 		Stopwatch stopwatch = Stopwatch.StartNew();
 		ConcurrentQueue<long> runTimes = new();
-		TimeSpan interval = TimeSpan.FromMilliseconds(200);
+		// Long enough that a timer oversleeping by a couple of hundred milliseconds, as busy CI runners
+		// do, stays under the 1.5x bound, while a skipped tick (about twice the interval) still exceeds it
+		TimeSpan interval = TimeSpan.FromMilliseconds(500);
 
 		IntervalAction intervalAction = IntervalAction.Start(new()
 		{
