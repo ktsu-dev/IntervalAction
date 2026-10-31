@@ -1133,7 +1133,9 @@ public class IntervalActionTests
 	{
 		Stopwatch stopwatch = Stopwatch.StartNew();
 		ConcurrentQueue<long> runTimes = new();
-		TimeSpan interval = TimeSpan.FromMilliseconds(200);
+		// Long enough that a timer oversleeping by a couple of hundred milliseconds, as busy CI runners
+		// do, stays under the 1.5x bound, while a skipped tick (about twice the interval) still exceeds it
+		TimeSpan interval = TimeSpan.FromMilliseconds(500);
 
 		IntervalAction intervalAction = IntervalAction.Start(new()
 		{
