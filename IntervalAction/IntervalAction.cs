@@ -184,7 +184,8 @@ public sealed class IntervalAction : IDisposable
 	/// <exception cref="ArgumentOutOfRangeException">
 	/// Thrown if <see cref="IntervalActionOptions.PollingInterval"/> is shorter than one millisecond, which
 	/// includes zero, negative values and <see cref="Timeout.InfiniteTimeSpan"/>, or longer than
-	/// <see cref="int.MaxValue"/> milliseconds (about 24.8 days).
+	/// <see cref="int.MaxValue"/> milliseconds (about 24.8 days), or if <see cref="IntervalActionOptions.IntervalType"/>
+	/// is not a defined <see cref="IntervalType"/> value.
 	/// </exception>
 	public static IntervalAction Start(IntervalActionOptions intervalActionOptions)
 	{
@@ -214,6 +215,16 @@ public sealed class IntervalAction : IDisposable
 				nameof(intervalActionOptions),
 				intervalActionOptions.PollingInterval,
 				$"{nameof(IntervalActionOptions.PollingInterval)} must be between {MinimumPollingInterval} and {MaximumPollingInterval}.");
+		}
+
+		// An undefined value, such as a stale number bound from configuration, would match neither
+		// branch that records a run, so the action would run on every poll and ignore ActionInterval.
+		if (intervalActionOptions.IntervalType is not (IntervalType.FromLastCompletion or IntervalType.FromLastStart))
+		{
+			throw new ArgumentOutOfRangeException(
+				nameof(intervalActionOptions),
+				intervalActionOptions.IntervalType,
+				$"{nameof(IntervalActionOptions.IntervalType)} must be {nameof(IntervalType.FromLastCompletion)} or {nameof(IntervalType.FromLastStart)}.");
 		}
 
 		IntervalAction intervalAction = new()
