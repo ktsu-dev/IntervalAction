@@ -614,11 +614,18 @@ public sealed class IntervalAction : IDisposable
 						return;
 					}
 
-					Action();
-
-					if (IntervalType == IntervalType.FromLastCompletion)
+					try
 					{
-						RecordRun();
+						Action();
+					}
+					finally
+					{
+						// A failed run still counts, as it does for FromLastStart, so a restart after
+						// a fault waits out the interval instead of running the action again at once
+						if (IntervalType == IntervalType.FromLastCompletion)
+						{
+							RecordRun();
+						}
 					}
 				}, CancellationToken.None);
 
@@ -695,10 +702,14 @@ public sealed class IntervalAction : IDisposable
 				// Stop() asked the action to give up, and it did: that is how a run ends after a stop,
 				// not a failure to report
 			}
-
-			if (IntervalType == IntervalType.FromLastCompletion)
+			finally
 			{
-				RecordRun();
+				// A failed run still counts, as it does for FromLastStart, so a restart after a fault
+				// waits out the interval instead of running the action again at once
+				if (IntervalType == IntervalType.FromLastCompletion)
+				{
+					RecordRun();
+				}
 			}
 		}
 		finally
