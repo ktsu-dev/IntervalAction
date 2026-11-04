@@ -3,42 +3,6 @@
 <Suppressions xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema">
   <Suppression>
     <DiagnosticId>CP0014</DiagnosticId>
-    <Target>M:System.Reflection.NullabilityInfo.get_ElementType:[T:System.Runtime.CompilerServices.CompilerGeneratedAttribute]</Target>
-    <Left>lib/net6.0/ktsu.IntervalAction.dll</Left>
-    <Right>lib/net7.0/ktsu.IntervalAction.dll</Right>
-  </Suppression>
-  <Suppression>
-    <DiagnosticId>CP0014</DiagnosticId>
-    <Target>M:System.Reflection.NullabilityInfo.get_GenericTypeArguments:[T:System.Runtime.CompilerServices.CompilerGeneratedAttribute]</Target>
-    <Left>lib/net6.0/ktsu.IntervalAction.dll</Left>
-    <Right>lib/net7.0/ktsu.IntervalAction.dll</Right>
-  </Suppression>
-  <Suppression>
-    <DiagnosticId>CP0014</DiagnosticId>
-    <Target>M:System.Reflection.NullabilityInfo.get_ReadState:[T:System.Runtime.CompilerServices.CompilerGeneratedAttribute]</Target>
-    <Left>lib/net6.0/ktsu.IntervalAction.dll</Left>
-    <Right>lib/net7.0/ktsu.IntervalAction.dll</Right>
-  </Suppression>
-  <Suppression>
-    <DiagnosticId>CP0014</DiagnosticId>
-    <Target>M:System.Reflection.NullabilityInfo.get_Type:[T:System.Runtime.CompilerServices.CompilerGeneratedAttribute]</Target>
-    <Left>lib/net6.0/ktsu.IntervalAction.dll</Left>
-    <Right>lib/net7.0/ktsu.IntervalAction.dll</Right>
-  </Suppression>
-  <Suppression>
-    <DiagnosticId>CP0014</DiagnosticId>
-    <Target>M:System.Reflection.NullabilityInfo.get_WriteState:[T:System.Runtime.CompilerServices.CompilerGeneratedAttribute]</Target>
-    <Left>lib/net6.0/ktsu.IntervalAction.dll</Left>
-    <Right>lib/net7.0/ktsu.IntervalAction.dll</Right>
-  </Suppression>
-  <Suppression>
-    <DiagnosticId>CP0014</DiagnosticId>
-    <Target>M:System.Runtime.Versioning.OSPlatformAttribute.get_PlatformName:[T:System.Runtime.CompilerServices.CompilerGeneratedAttribute]</Target>
-    <Left>lib/net6.0/ktsu.IntervalAction.dll</Left>
-    <Right>lib/net7.0/ktsu.IntervalAction.dll</Right>
-  </Suppression>
-  <Suppression>
-    <DiagnosticId>CP0014</DiagnosticId>
     <Target>M:System.Diagnostics.CodeAnalysis.ExperimentalAttribute.get_UrlFormat:[T:System.Runtime.CompilerServices.CompilerGeneratedAttribute]</Target>
     <Left>lib/net8.0/ktsu.IntervalAction.dll</Left>
     <Right>lib/net9.0/ktsu.IntervalAction.dll</Right>
@@ -96,30 +60,6 @@
     <Target>T:System.Runtime.CompilerServices.DefaultInterpolatedStringHandler:[T:System.Runtime.CompilerServices.NullableContextAttribute]</Target>
     <Left>lib/net9.0/ktsu.IntervalAction.dll</Left>
     <Right>lib/net10.0/ktsu.IntervalAction.dll</Right>
-  </Suppression>
-  <Suppression>
-    <DiagnosticId>CP0015</DiagnosticId>
-    <Target>T:System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembersAttribute:[T:System.AttributeUsageAttribute]</Target>
-    <Left>lib/net5.0/ktsu.IntervalAction.dll</Left>
-    <Right>lib/net6.0/ktsu.IntervalAction.dll</Right>
-  </Suppression>
-  <Suppression>
-    <DiagnosticId>CP0015</DiagnosticId>
-    <Target>T:System.Diagnostics.CodeAnalysis.RequiresUnreferencedCodeAttribute:[T:System.AttributeUsageAttribute]</Target>
-    <Left>lib/net5.0/ktsu.IntervalAction.dll</Left>
-    <Right>lib/net6.0/ktsu.IntervalAction.dll</Right>
-  </Suppression>
-  <Suppression>
-    <DiagnosticId>CP0015</DiagnosticId>
-    <Target>T:System.Runtime.Versioning.SupportedOSPlatformAttribute:[T:System.AttributeUsageAttribute]</Target>
-    <Left>lib/net5.0/ktsu.IntervalAction.dll</Left>
-    <Right>lib/net6.0/ktsu.IntervalAction.dll</Right>
-  </Suppression>
-  <Suppression>
-    <DiagnosticId>CP0015</DiagnosticId>
-    <Target>T:System.Runtime.Versioning.UnsupportedOSPlatformAttribute:[T:System.AttributeUsageAttribute]</Target>
-    <Left>lib/net5.0/ktsu.IntervalAction.dll</Left>
-    <Right>lib/net6.0/ktsu.IntervalAction.dll</Right>
   </Suppression>
   <Suppression>
     <DiagnosticId>CP0015</DiagnosticId>
