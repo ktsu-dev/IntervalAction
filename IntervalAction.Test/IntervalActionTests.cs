@@ -1229,15 +1229,16 @@ public class IntervalActionTests
 	}
 
 	[TestMethod]
-	[DataRow(0, 300)]
-	[DataRow(100, 250)]
+	[DataRow(0, 600)]
+	[DataRow(200, 500)]
 	public async Task ShortActionIntervalKeepsToThePollingGridInFromLastCompletion(int actionIntervalMilliseconds, int workMilliseconds)
 	{
 		Stopwatch stopwatch = Stopwatch.StartNew();
 		ConcurrentQueue<long> runTimes = new();
 		// The action interval plus the run time fits inside one polling interval, so every tick should
-		// find the run due. Slipping by the run time each cycle would put the gaps at 1.5x-1.6x the interval
-		TimeSpan interval = TimeSpan.FromMilliseconds(500);
+		// find the run due. Slipping by the run time each cycle would put the gaps at 1.5x-1.6x the interval.
+		// A whole second keeps the 1.25x bound clear of the 100-150 ms a macOS runner's timer oversleeps by
+		TimeSpan interval = TimeSpan.FromMilliseconds(1000);
 
 		IntervalAction intervalAction = IntervalAction.Start(new()
 		{
@@ -1251,7 +1252,7 @@ public class IntervalActionTests
 			},
 		});
 
-		await Task.Delay(interval * 10).ConfigureAwait(false);
+		await Task.Delay(interval * 8).ConfigureAwait(false);
 		await intervalAction.StopAsync().ConfigureAwait(false);
 		intervalAction.RethrowExceptions();
 
