@@ -1228,6 +1228,38 @@ public class IntervalActionTests
 		Assert.IsLessThan(interval.TotalMilliseconds * 1.5, longestGap, $"Expected the action to run every {interval.TotalMilliseconds} ms without skipping a tick, but runs were at {string.Join(", ", times)} ms.");
 	}
 
+	[TestMethod]
+	[DataRow(0, 300)]
+	[DataRow(100, 250)]
+	public async Task ShortActionIntervalKeepsToThePollingGridInFromLastCompletion(int actionIntervalMilliseconds, int workMilliseconds)
+	{
+		Stopwatch stopwatch = Stopwatch.StartNew();
+		ConcurrentQueue<long> runTimes = new();
+		// The action interval plus the run time fits inside one polling interval, so every tick should
+		// find the run due. Slipping by the run time each cycle would put the gaps at 1.5x-1.6x the interval
+		TimeSpan interval = TimeSpan.FromMilliseconds(500);
+
+		IntervalAction intervalAction = IntervalAction.Start(new()
+		{
+			PollingInterval = interval,
+			ActionInterval = TimeSpan.FromMilliseconds(actionIntervalMilliseconds),
+			IntervalType = IntervalType.FromLastCompletion,
+			Action = () =>
+			{
+				runTimes.Enqueue(stopwatch.ElapsedMilliseconds);
+				Thread.Sleep(workMilliseconds);
+			},
+		});
+
+		await Task.Delay(interval * 10).ConfigureAwait(false);
+		await intervalAction.StopAsync().ConfigureAwait(false);
+		intervalAction.RethrowExceptions();
+
+		long[] times = [.. runTimes];
+		long longestGap = times.Zip(times.Skip(1), static (earlier, later) => later - earlier).Max();
+		Assert.IsLessThan(interval.TotalMilliseconds * 1.25, longestGap, $"Expected the action to run every {interval.TotalMilliseconds} ms, not every {interval.TotalMilliseconds} ms plus its run time, but runs were at {string.Join(", ", times)} ms.");
+	}
+
 	/// <summary>
 	/// Starts an instance whose polling loop runs the action once and then leaves <see cref="IntervalAction.TryRun()"/> to the test.
 	/// </summary>
