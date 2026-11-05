@@ -1203,9 +1203,10 @@ public class IntervalActionTests
 	{
 		Stopwatch stopwatch = Stopwatch.StartNew();
 		ConcurrentQueue<long> runTimes = new();
-		// Long enough that a timer oversleeping by a couple of hundred milliseconds, as busy CI runners
-		// do, stays under the 1.5x bound, while a skipped tick (about twice the interval) still exceeds it
-		TimeSpan interval = TimeSpan.FromMilliseconds(500);
+		// Long enough that a timer oversleeping by a few hundred milliseconds, as busy CI runners do
+		// (macOS runners add 100-300 ms per cycle), stays under the 1.5x bound, while a skipped tick
+		// (about twice the interval) still exceeds it
+		TimeSpan interval = TimeSpan.FromMilliseconds(1000);
 
 		IntervalAction intervalAction = IntervalAction.Start(new()
 		{
@@ -1219,7 +1220,7 @@ public class IntervalActionTests
 			},
 		});
 
-		await Task.Delay(interval * 10).ConfigureAwait(false);
+		await Task.Delay(interval * 8).ConfigureAwait(false);
 		await intervalAction.StopAsync().ConfigureAwait(false);
 		intervalAction.RethrowExceptions();
 
