@@ -502,7 +502,8 @@ public sealed class IntervalAction : IDisposable
 
 	/// <summary>
 	/// Waits at least <see cref="PollingInterval"/>, as measured on a monotonic clock, and in
-	/// FromLastCompletion mode at least <see cref="PollingInterval"/> past a run that finishes meanwhile.
+	/// FromLastCompletion mode at least until the run that finishes meanwhile is due, bounded by
+	/// <see cref="PollingInterval"/> past its completion.
 	/// </summary>
 	/// <param name="cancellationToken">Ends the wait early.</param>
 	/// <returns>A task that completes once the whole polling interval has passed.</returns>
@@ -518,7 +519,14 @@ public sealed class IntervalAction : IDisposable
 	/// dispatched. Measured from the dispatch, the next tick came out short of the run being due by
 	/// however long the run took, so with equal polling and action intervals every run slipped a whole
 	/// polling interval and the action ran at half the requested rate. The wait therefore also lasts
-	/// until a full polling interval has passed since a run that finishes while it is in progress.
+	/// until the smaller of <see cref="ActionInterval"/> and <see cref="PollingInterval"/> has passed
+	/// since a run that finishes while it is in progress.
+	/// </para>
+	/// <para>
+	/// The extension stops at the run being due rather than always lasting a full polling interval.
+	/// When <see cref="ActionInterval"/> plus the run time fits inside one polling interval, the next
+	/// run is already due on the next tick, so the wait keeps to the polling grid instead of slipping
+	/// by the run time every cycle.
 	/// </para>
 	/// </remarks>
 	private async Task WaitOutPollingIntervalAsync(CancellationToken cancellationToken)
@@ -530,17 +538,20 @@ public sealed class IntervalAction : IDisposable
 		{
 			await Task.Delay(TimeSpan.FromMilliseconds(Math.Ceiling(remaining.TotalMilliseconds)), cancellationToken).ConfigureAwait(false);
 
-			long anchor = start;
+			long now = Stopwatch.GetTimestamp();
+			remaining = PollingInterval - GetElapsedTime(start, now);
 
 			lock (Lock)
 			{
-				if (LastCompletionTimestamp is long completedAt && completedAt > anchor)
+				if (LastCompletionTimestamp is long completedAt && completedAt > start)
 				{
-					anchor = completedAt;
+					TimeSpan untilDue = (ActionInterval < PollingInterval ? ActionInterval : PollingInterval) - GetElapsedTime(completedAt, now);
+					if (untilDue > remaining)
+					{
+						remaining = untilDue;
+					}
 				}
 			}
-
-			remaining = PollingInterval - GetElapsedTime(anchor, Stopwatch.GetTimestamp());
 		}
 	}
 

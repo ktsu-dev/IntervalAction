@@ -1203,9 +1203,10 @@ public class IntervalActionTests
 	{
 		Stopwatch stopwatch = Stopwatch.StartNew();
 		ConcurrentQueue<long> runTimes = new();
-		// Long enough that a timer oversleeping by a couple of hundred milliseconds, as busy CI runners
-		// do, stays under the 1.5x bound, while a skipped tick (about twice the interval) still exceeds it
-		TimeSpan interval = TimeSpan.FromMilliseconds(500);
+		// Long enough that a timer oversleeping by a few hundred milliseconds, as busy CI runners do
+		// (macOS runners add 100-300 ms per cycle), stays under the 1.5x bound, while a skipped tick
+		// (about twice the interval) still exceeds it
+		TimeSpan interval = TimeSpan.FromMilliseconds(1000);
 
 		IntervalAction intervalAction = IntervalAction.Start(new()
 		{
@@ -1219,13 +1220,46 @@ public class IntervalActionTests
 			},
 		});
 
-		await Task.Delay(interval * 10).ConfigureAwait(false);
+		await Task.Delay(interval * 8).ConfigureAwait(false);
 		await intervalAction.StopAsync().ConfigureAwait(false);
 		intervalAction.RethrowExceptions();
 
 		long[] times = [.. runTimes];
 		long longestGap = times.Zip(times.Skip(1), static (earlier, later) => later - earlier).Max();
 		Assert.IsLessThan(interval.TotalMilliseconds * 1.5, longestGap, $"Expected the action to run every {interval.TotalMilliseconds} ms without skipping a tick, but runs were at {string.Join(", ", times)} ms.");
+	}
+
+	[TestMethod]
+	[DataRow(0, 600)]
+	[DataRow(200, 500)]
+	public async Task ShortActionIntervalKeepsToThePollingGridInFromLastCompletion(int actionIntervalMilliseconds, int workMilliseconds)
+	{
+		Stopwatch stopwatch = Stopwatch.StartNew();
+		ConcurrentQueue<long> runTimes = new();
+		// The action interval plus the run time fits inside one polling interval, so every tick should
+		// find the run due. Slipping by the run time each cycle would put the gaps at 1.5x-1.6x the interval.
+		// A whole second keeps the 1.25x bound clear of the 100-150 ms a macOS runner's timer oversleeps by
+		TimeSpan interval = TimeSpan.FromMilliseconds(1000);
+
+		IntervalAction intervalAction = IntervalAction.Start(new()
+		{
+			PollingInterval = interval,
+			ActionInterval = TimeSpan.FromMilliseconds(actionIntervalMilliseconds),
+			IntervalType = IntervalType.FromLastCompletion,
+			Action = () =>
+			{
+				runTimes.Enqueue(stopwatch.ElapsedMilliseconds);
+				Thread.Sleep(workMilliseconds);
+			},
+		});
+
+		await Task.Delay(interval * 8).ConfigureAwait(false);
+		await intervalAction.StopAsync().ConfigureAwait(false);
+		intervalAction.RethrowExceptions();
+
+		long[] times = [.. runTimes];
+		long longestGap = times.Zip(times.Skip(1), static (earlier, later) => later - earlier).Max();
+		Assert.IsLessThan(interval.TotalMilliseconds * 1.25, longestGap, $"Expected the action to run every {interval.TotalMilliseconds} ms, not every {interval.TotalMilliseconds} ms plus its run time, but runs were at {string.Join(", ", times)} ms.");
 	}
 
 	/// <summary>
