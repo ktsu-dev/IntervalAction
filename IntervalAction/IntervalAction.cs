@@ -75,6 +75,18 @@ public sealed class IntervalAction : IDisposable
 	internal Task? ActionTask { get; set; }
 
 	/// <summary>
+	/// The <see cref="ActionTask"/> of the run whose code is executing on the current asynchronous
+	/// flow, or <see langword="null"/> outside any run.
+	/// </summary>
+	/// <remarks>
+	/// <see cref="StopAsync"/> reads it to tell when it is being called from the very run it would
+	/// wait for, which could then never finish (ktsu-dev/IntervalAction#103). It holds the run's task
+	/// rather than the instance, so work the action leaves behind, which inherits the value, is not
+	/// mistaken for a later run of the same instance.
+	/// </remarks>
+	private static readonly AsyncLocal<Task?> CurrentRun = new();
+
+	/// <summary>
 	/// Gets or sets a value indicating whether polling should continue.
 	/// </summary>
 	internal bool ShouldPoll { get; set; }
@@ -280,7 +292,10 @@ public sealed class IntervalAction : IDisposable
 	/// afterwards to observe a failure from the final run.
 	/// </para>
 	/// <para>
-	/// Do not await this from inside the action: it waits for the action to finish, so it would never complete.
+	/// Called from inside the action, this does not wait for the run it is called from, which cannot
+	/// finish until this returns. It still stops polling, so no further run starts, and waits for the
+	/// polling loop to exit. A later <see cref="StopAsync"/> from outside the action waits for that run
+	/// as usual.
 	/// </para>
 	/// </remarks>
 	public async Task StopAsync()
@@ -292,7 +307,8 @@ public sealed class IntervalAction : IDisposable
 
 		await WaitAndDiscardOutcomeAsync(pollingTask).ConfigureAwait(false);
 
-		if (actionTask is not null)
+		// Waiting on the run this is called from would wait on itself (ktsu-dev/IntervalAction#103)
+		if (actionTask is not null && actionTask != CurrentRun.Value)
 		{
 			await WaitAndDiscardOutcomeAsync(actionTask).ConfigureAwait(false);
 		}
@@ -671,6 +687,11 @@ public sealed class IntervalAction : IDisposable
 				LastRunTime = DateTimeOffset.Now;
 				LastRunTimestamp = claimedAt;
 			}
+
+			// TryRun assigns ActionTask under this lock before the run can take it, and does not replace
+			// it until the run completes, so it is this run's task. Set from this synchronous method, the
+			// value stays on the caller's flow and reaches the action.
+			CurrentRun.Value = ActionTask;
 
 			return true;
 		}
