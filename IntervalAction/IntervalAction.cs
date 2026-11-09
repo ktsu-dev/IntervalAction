@@ -113,6 +113,17 @@ public sealed class IntervalAction : IDisposable
 	private Lock Lock { get; } = new();
 
 	/// <summary>
+	/// Gets or sets the capture of the failure most recently rethrown.
+	/// </summary>
+	/// <remarks>
+	/// <see cref="ExceptionDispatchInfo.Capture"/> snapshots the exception's trace as it stands, and
+	/// a stored failure is the same object on every rethrow, so capturing it afresh each time would
+	/// fold every earlier rethrow into the snapshot and grow the trace by a section per call. Reusing
+	/// one capture per failure keeps the trace the same on every call.
+	/// </remarks>
+	private ExceptionDispatchInfo? RethrownFailure { get; set; }
+
+	/// <summary>
 	/// Gets or sets the most recent restart, which the next restart waits on before it begins.
 	/// </summary>
 	/// <remarks>
@@ -582,7 +593,7 @@ public sealed class IntervalAction : IDisposable
 				if (GetActionFailure(ActionTask) is { } failure)
 				{
 					// Rethrow through ExceptionDispatchInfo so the trace still shows where the action failed
-					ExceptionDispatchInfo.Capture(failure).Throw();
+					Rethrow(failure);
 				}
 
 				ActionTask = null;
@@ -822,7 +833,28 @@ public sealed class IntervalAction : IDisposable
 
 		if (exception is not null)
 		{
-			ExceptionDispatchInfo.Capture(exception).Throw();
+			Rethrow(exception);
 		}
+	}
+
+	/// <summary>
+	/// Rethrows a failure with the trace from where the action threw, through one
+	/// <see cref="ExceptionDispatchInfo"/> per failure, so repeated rethrows don't grow the trace.
+	/// </summary>
+	/// <param name="failure">The exception to rethrow.</param>
+	private void Rethrow(Exception failure)
+	{
+		ExceptionDispatchInfo captured;
+		lock (Lock)
+		{
+			if (RethrownFailure is not { } previous || !ReferenceEquals(previous.SourceException, failure))
+			{
+				RethrownFailure = ExceptionDispatchInfo.Capture(failure);
+			}
+
+			captured = RethrownFailure;
+		}
+
+		captured.Throw();
 	}
 }

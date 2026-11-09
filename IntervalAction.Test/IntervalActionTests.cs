@@ -501,6 +501,36 @@ public class IntervalActionTests
 	}
 
 	[TestMethod]
+	public async Task RethrowExceptionsKeepsTheSameStackTraceOnEveryCall()
+	{
+		// Arrange
+		IntervalActionOptions options = new()
+		{
+			PollingInterval = TimeSpan.FromMilliseconds(10),
+			ActionInterval = TimeSpan.Zero,
+			Action = ThrowFromNamedMethod,
+			IntervalType = IntervalType.FromLastStart
+		};
+		IntervalAction intervalAction = IntervalAction.Start(options);
+		await WaitForPollingToFaultAsync(intervalAction).ConfigureAwait(false);
+
+		// Act
+		List<string?> traces = [];
+		for (int i = 0; i < 100; i++)
+		{
+			traces.Add(Assert.ThrowsExactly<InvalidOperationException>(intervalAction.RethrowExceptions).StackTrace);
+		}
+
+		intervalAction.Stop();
+
+		// Assert: each rethrow used to capture the trace the previous one had left on the same
+		// exception, adding a section per call
+		int firstLength = traces[0]?.Length ?? 0;
+		Assert.IsTrue(traces.TrueForAll(trace => trace?.Length == firstLength), $"Trace lengths ranged from {firstLength} to {traces.Max(trace => trace?.Length)}.");
+		StringAssert.Contains(traces[^1], nameof(ThrowFromNamedMethod));
+	}
+
+	[TestMethod]
 	public async Task AsyncActionRunsNeverOverlap()
 	{
 		// Arrange: each run awaits far longer than the interval between runs
