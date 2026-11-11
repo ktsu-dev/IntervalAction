@@ -1,17 +1,6 @@
-## v1.7.0 (minor)
+## v1.7.1-pre.1 (prerelease)
 
-Changes since v1.6.0:
+Changes since v1.7.0:
 
-- Keep FromLastCompletion polling on its grid when the next run is due sooner [patch] (#102) (matt-edmondson)
-- Skip waiting on its own run when StopAsync is called from the action [patch] (#104) (matt-edmondson)
-- Keep a rethrown failure's stack trace the same length on every call [patch] (#106) (matt-edmondson)
-- Regenerate CompatibilitySuppressions.xml after the Polyfill 11.4.5 bump [patch] (#99) (matt-edmondson)
-- Count a failed run toward the interval in FromLastCompletion [patch] (#97) (matt-edmondson)
-- Stop equal polling and action intervals skipping a tick in FromLastCompletion [patch] (#96) (matt-edmondson)
-- Reject an undefined IntervalType in Start [patch] (#95) (matt-edmondson)
-- Wait only on the stopped loop in StopAsync when a restart follows [patch] (matt-edmondson)
-- Assert that DisposeIsIdempotent leaves the instance disposed (Claude)
-- Move the Dispose tests ahead of the wall-clock test (Claude)
-- Implement IDisposable so a forgotten Stop() can be caught [minor] (Claude)
-- Stop equal polling and action intervals skipping a tick [patch] (Claude)
+- Bump the ktsu group with 9 updates (dependabot[bot])
 
