@@ -161,7 +161,7 @@ It implements `IDisposable`.
 |------|------------|-------------|-------------|
 | `Start` | `IntervalActionOptions options` | `IntervalAction` | Static factory method to create and start an interval action |
 | `Stop` | | `void` | Stops the scheduled action from running; a run already in progress is not waited for |
-| `StopAsync` | | `Task` | Stops the scheduled action, then completes once the polling loop has exited and any run in progress has finished. Use it before disposing anything the action uses |
+| `StopAsync` | | `Task` | Stops the scheduled action, then completes once the polling loop has exited and any run in progress has finished. Use it before disposing anything the action uses. Called from inside the action, it does not wait for the run it is called from, so the action can stop its own polling |
 | `Restart` | | `void` | Restarts a previously stopped action |
 | `RestartAsync` | | `Task` | Restarts a previously stopped action, completing once the new polling loop has started |
 | `RethrowExceptions` | | `void` | Rethrows the exception the action last failed with, if any |

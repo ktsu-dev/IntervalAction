@@ -458,6 +458,86 @@ public class IntervalActionTests
 		Assert.AreEqual(0, restartsThatNeverRan, outcome);
 	}
 
+	/// <summary>
+	/// An async action that stops its own polling once its work is done. StopAsync() awaited the run it
+	/// was called from, which was awaiting StopAsync(), so neither ever finished (ktsu-dev/IntervalAction#103).
+	/// </summary>
+	[TestMethod]
+	public async Task StopAsyncCalledFromInsideTheAsyncActionCompletes()
+	{
+		// Arrange
+		int runs = 0;
+		TaskCompletionSource<IntervalAction> self = new(TaskCreationOptions.RunContinuationsAsynchronously);
+		TaskCompletionSource<bool> innerStopReturned = new(TaskCreationOptions.RunContinuationsAsynchronously);
+		using IntervalAction intervalAction = IntervalAction.Start(new()
+		{
+			PollingInterval = TimeSpan.FromMilliseconds(10),
+			AsyncAction = async _ =>
+			{
+				Interlocked.Increment(ref runs);
+				IntervalAction running = await self.Task.ConfigureAwait(false);
+				await running.StopAsync().ConfigureAwait(false);
+				innerStopReturned.TrySetResult(true);
+			},
+		});
+
+		// Act
+		self.SetResult(intervalAction);
+
+		// Assert
+		await AssertStopsFromInsideTheActionAsync(intervalAction, innerStopReturned.Task, () => Volatile.Read(ref runs)).ConfigureAwait(false);
+	}
+
+	/// <summary>
+	/// The synchronous form of <see cref="StopAsyncCalledFromInsideTheAsyncActionCompletes"/>: a run
+	/// that blocks on StopAsync() blocked its pool thread for good (ktsu-dev/IntervalAction#103).
+	/// </summary>
+	[TestMethod]
+	public async Task StopAsyncWaitedOnFromInsideTheActionCompletes()
+	{
+		// Arrange
+		int runs = 0;
+		TaskCompletionSource<IntervalAction> self = new(TaskCreationOptions.RunContinuationsAsynchronously);
+		TaskCompletionSource<bool> innerStopReturned = new(TaskCreationOptions.RunContinuationsAsynchronously);
+		using IntervalAction intervalAction = IntervalAction.Start(new()
+		{
+			PollingInterval = TimeSpan.FromMilliseconds(10),
+			Action = () =>
+			{
+				Interlocked.Increment(ref runs);
+				self.Task.GetAwaiter().GetResult().StopAsync().GetAwaiter().GetResult();
+				innerStopReturned.TrySetResult(true);
+			},
+		});
+
+		// Act
+		self.SetResult(intervalAction);
+
+		// Assert
+		await AssertStopsFromInsideTheActionAsync(intervalAction, innerStopReturned.Task, () => Volatile.Read(ref runs)).ConfigureAwait(false);
+	}
+
+	/// <summary>
+	/// Checks that a StopAsync() called from the action's first run returned, that polling ended with
+	/// no further run, and that a later StopAsync() from outside the action completes too.
+	/// </summary>
+	private static async Task AssertStopsFromInsideTheActionAsync(IntervalAction intervalAction, Task innerStopReturned, Func<int> runs)
+	{
+		TimeSpan patience = TimeSpan.FromSeconds(5);
+
+		Assert.AreSame(innerStopReturned, await Task.WhenAny(innerStopReturned, Task.Delay(patience)).ConfigureAwait(false),
+			$"StopAsync called from inside the action had not returned after {patience.TotalSeconds} s.");
+
+		Task outerStop = intervalAction.StopAsync();
+		Assert.AreSame(outerStop, await Task.WhenAny(outerStop, Task.Delay(patience)).ConfigureAwait(false),
+			$"StopAsync called after the action stopped itself had not returned after {patience.TotalSeconds} s.");
+		Assert.IsTrue(intervalAction.PollingTask.IsCompleted, "The polling loop was still running after the action stopped it.");
+
+		// Several polling intervals with the action due on every one
+		await Task.Delay(TimeSpan.FromMilliseconds(100)).ConfigureAwait(false);
+		Assert.AreEqual(1, runs(), "The action ran again after it stopped itself.");
+	}
+
 	[TestMethod]
 	public async Task RethrowExceptionsThrowsException()
 	{
