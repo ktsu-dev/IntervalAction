@@ -140,9 +140,8 @@ var intervalAction = IntervalAction.Start(options);
 // Later, adjust the interval
 await Task.Delay(20000); // After 20 seconds
 
-intervalAction.Stop();
-options.ActionInterval = TimeSpan.FromSeconds(1);
-intervalAction.Restart();
+// Takes effect from the next poll, measured from the last run. The action keeps running.
+intervalAction.ChangeInterval(TimeSpan.FromSeconds(1));
 
 Console.WriteLine("Interval changed to 1 second");
 ```
@@ -164,6 +163,7 @@ It implements `IDisposable`.
 | `StopAsync` | | `Task` | Stops the scheduled action, then completes once the polling loop has exited and any run in progress has finished. Use it before disposing anything the action uses. Called from inside the action, it does not wait for the run it is called from, so the action can stop its own polling |
 | `Restart` | | `void` | Restarts a previously stopped action |
 | `RestartAsync` | | `Task` | Restarts a previously stopped action, completing once the new polling loop has started |
+| `ChangeInterval` | `TimeSpan actionInterval` | `void` | Changes the interval of a running action. It applies from the next poll and is measured from the last run, and a run in progress is not interrupted |
 | `RethrowExceptions` | | `void` | Rethrows the exception the action last failed with, if any |
 | `Dispose` | | `void` | Stops the action for good, like `Stop`, after which `Restart` throws `ObjectDisposedException`. An instance that is never stopped or disposed keeps running even when nothing references it |
 

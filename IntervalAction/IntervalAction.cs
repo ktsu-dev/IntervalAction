@@ -113,9 +113,13 @@ public sealed class IntervalAction : IDisposable
 	private CancellationTokenSource? ActionCancellation { get; set; }
 
 	/// <summary>
-	/// Gets the interval at which the action should be executed.
+	/// Gets or sets the interval at which the action should be executed.
 	/// </summary>
-	private TimeSpan ActionInterval { get; init; }
+	/// <remarks>
+	/// Only read or set while holding <see cref="Lock"/>, because <see cref="ChangeInterval"/> can
+	/// replace it while the polling loop is running.
+	/// </remarks>
+	private TimeSpan ActionInterval { get; set; }
 
 	/// <summary>
 	/// Gets the type of interval measurement for the action, either from the last completion or start time of the action.
@@ -272,6 +276,28 @@ public sealed class IntervalAction : IDisposable
 		intervalAction.Restart();
 
 		return intervalAction;
+	}
+
+	/// <summary>
+	/// Changes how long the action waits between runs, without stopping it.
+	/// </summary>
+	/// <param name="actionInterval">
+	/// The new interval, measured as <see cref="IntervalActionOptions.ActionInterval"/> is. A negative
+	/// interval keeps the action from running, as it does when given to <see cref="Start"/>.
+	/// </param>
+	/// <remarks>
+	/// The new interval applies from the next poll, and is measured from the last run, which is kept:
+	/// a run that is already overdue under the new interval starts on the next poll, and one that is
+	/// not waits out the rest of it. A run in progress is not interrupted. The interval also survives
+	/// <see cref="Stop"/> and <see cref="Restart"/>, and changing it on a stopped or disposed instance
+	/// is allowed but runs nothing.
+	/// </remarks>
+	public void ChangeInterval(TimeSpan actionInterval)
+	{
+		lock (Lock)
+		{
+			ActionInterval = actionInterval;
+		}
 	}
 
 	/// <summary>
