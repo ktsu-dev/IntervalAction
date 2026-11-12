@@ -748,6 +748,103 @@ public class IntervalActionTests
 	}
 
 	[TestMethod]
+	public async Task StopDoesNotRunTheAsyncActionCleanupOnTheCallersThread()
+	{
+		// Arrange: the action waits through ct.Register, so a cancel resumes its cleanup inline
+		using ManualResetEventSlim started = new();
+		using ManualResetEventSlim releaseCleanup = new();
+		int cleanupThread = 0;
+		IntervalAction intervalAction = IntervalAction.Start(new()
+		{
+			PollingInterval = TimeSpan.FromMilliseconds(10),
+			ActionInterval = TimeSpan.FromHours(1),
+			AsyncAction = async cancellationToken =>
+			{
+				TaskCompletionSource<bool> cancelled = new();
+				using CancellationTokenRegistration registration = cancellationToken.Register(() => cancelled.TrySetCanceled(cancellationToken));
+				started.Set();
+				try
+				{
+					await cancelled.Task.ConfigureAwait(false);
+				}
+				catch (OperationCanceledException)
+				{
+					Volatile.Write(ref cleanupThread, Environment.CurrentManagedThreadId);
+
+					// Stands in for synchronous cleanup (flush, dispose, log) that takes a while
+					releaseCleanup.Wait(TimeSpan.FromSeconds(10), CancellationToken.None);
+					throw;
+				}
+			},
+		});
+		Assert.IsTrue(started.Wait(TimeSpan.FromSeconds(10)), "The action should start.");
+		Task actionTask = intervalAction.ActionTask!;
+
+		// Act: stop from a dedicated thread, as a UI thread would. A thread-pool caller could later pick
+		// up the handed-off cancel itself once it is free, which would make the thread check meaningless.
+		TimeSpan stopTook = TimeSpan.Zero;
+		int stopThread = 0;
+		Thread stopper = new(() =>
+		{
+			stopThread = Environment.CurrentManagedThreadId;
+			Stopwatch stopwatch = Stopwatch.StartNew();
+			intervalAction.Stop();
+			stopTook = stopwatch.Elapsed;
+		});
+		stopper.Start();
+		stopper.Join();
+		releaseCleanup.Set();
+
+		// Assert
+		Assert.AreSame(actionTask, await Task.WhenAny(actionTask, Task.Delay(TimeSpan.FromSeconds(10))).ConfigureAwait(false), "Stop should still cancel the running async action.");
+		Assert.IsLessThan(TimeSpan.FromSeconds(5), stopTook, $"Expected Stop() to return without waiting for the action's cleanup, but it took {stopTook}.");
+		Assert.AreNotEqual(stopThread, Volatile.Read(ref cleanupThread), "Expected the action's cleanup to run off the thread that called Stop().");
+		intervalAction.RethrowExceptions();
+	}
+
+	[TestMethod]
+	public async Task AThrowingCancellationCallbackIsReportedRatherThanThrownFromStop()
+	{
+		// Arrange
+		using ManualResetEventSlim started = new();
+		IntervalAction intervalAction = IntervalAction.Start(new()
+		{
+			PollingInterval = TimeSpan.FromMilliseconds(10),
+			ActionInterval = TimeSpan.FromHours(1),
+			AsyncAction = async cancellationToken =>
+			{
+				using CancellationTokenRegistration registration = cancellationToken.Register(static () => throw new InvalidOperationException("callback failed"));
+				started.Set();
+				await Task.Delay(TimeSpan.FromHours(1), cancellationToken).ConfigureAwait(false);
+			},
+		});
+		Assert.IsTrue(started.Wait(TimeSpan.FromSeconds(10)), "The action should start.");
+
+		// Act: neither stop throws the callback's exception
+		intervalAction.Stop();
+		await intervalAction.StopAsync().ConfigureAwait(false);
+
+		// Assert: the synchronous Stop() handed the cancel off, so wait for it to be recorded
+		Stopwatch stopwatch = Stopwatch.StartNew();
+		InvalidOperationException? reported = null;
+		while (reported is null && stopwatch.Elapsed < TimeSpan.FromSeconds(10))
+		{
+			try
+			{
+				intervalAction.RethrowExceptions();
+				await Task.Delay(10).ConfigureAwait(false);
+			}
+			catch (InvalidOperationException exception)
+			{
+				reported = exception;
+			}
+		}
+
+		Assert.IsNotNull(reported, "Expected RethrowExceptions to report the cancellation callback's exception.");
+		Assert.AreEqual("callback failed", reported.Message);
+	}
+
+	[TestMethod]
 	public void StartThrowsWhenBothActionAndAsyncActionAreSet()
 	{
 		IntervalActionOptions options = new()
