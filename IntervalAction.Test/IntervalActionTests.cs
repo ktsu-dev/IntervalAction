@@ -778,7 +778,8 @@ public class IntervalActionTests
 			},
 		});
 		Assert.IsTrue(started.Wait(TimeSpan.FromSeconds(10)), "The action should start.");
-		Task actionTask = intervalAction.ActionTask!;
+		Task? actionTask = intervalAction.ActionTask;
+		Assert.IsNotNull(actionTask, "The action should still be running.");
 
 		// Act: stop from a dedicated thread, as a UI thread would. A thread-pool caller could later pick
 		// up the handed-off cancel itself once it is free, which would make the thread check meaningless.
