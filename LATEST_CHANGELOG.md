@@ -1,6 +1,6 @@
-## v1.7.1-pre.2 (prerelease)
+## v1.7.1 (patch)
 
-Changes since v1.7.1-pre.1:
+Changes since v1.7.0:
 
-- Bump MSTest.Sdk from 4.5.2 to 4.5.3 (dependabot[bot])
+- Cancel the async action's token off the caller's thread in Stop [patch] (#110) (matt-edmondson)
 
