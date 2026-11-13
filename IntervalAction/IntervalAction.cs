@@ -136,6 +136,17 @@ public sealed class IntervalAction : IDisposable
 	private ExceptionDispatchInfo? RethrownFailure { get; set; }
 
 	/// <summary>
+	/// Gets or sets the exception a callback on the asynchronous action's token threw when
+	/// <see cref="Stop"/> cancelled it, or <see langword="null"/>. Only read or set while holding
+	/// <see cref="Lock"/>.
+	/// </summary>
+	/// <remarks>
+	/// The cancel runs on the thread pool, where nothing would see the exception, so it is kept for
+	/// <see cref="RethrowExceptions"/>. A restart discards it, as it does a failed run.
+	/// </remarks>
+	private Exception? CancellationFailure { get; set; }
+
+	/// <summary>
 	/// Gets or sets the most recent restart, which the next restart waits on before it begins.
 	/// </summary>
 	/// <remarks>
@@ -282,8 +293,11 @@ public sealed class IntervalAction : IDisposable
 	/// polling once it finishes. A restart requested after this call is unaffected.
 	/// A run that was dispatched but has not begun by the time this is called is skipped. A run that
 	/// had already begun is not waited for: use <see cref="StopAsync"/> to wait until it has finished.
+	/// The asynchronous action's token is cancelled on the thread pool, so its cancellation callbacks,
+	/// and any cleanup they resume, never run on the caller's thread or hold this call up. A callback
+	/// that throws is reported by <see cref="RethrowExceptions"/> rather than thrown from here.
 	/// </remarks>
-	public void Stop() => StopCore(out _, out _);
+	public void Stop() => StopCore(out _, out _, out _);
 
 	/// <summary>
 	/// Stops the polling of the action, then waits for the polling loop and any run of the action
@@ -314,9 +328,13 @@ public sealed class IntervalAction : IDisposable
 		// Only the loop and run this stop ended are waited on. A restart requested afterwards publishes a
 		// new loop, which polls until some later stop, so reading PollingTask again here could wait on
 		// it forever (ktsu-dev/IntervalAction#91).
-		StopCore(out Task pollingTask, out Task? actionTask);
+		StopCore(out Task pollingTask, out Task? actionTask, out Task cancelTask);
 
 		await WaitAndDiscardOutcomeAsync(pollingTask).ConfigureAwait(false);
+
+		// So a cancellation callback that threw has been recorded for RethrowExceptions by the time this
+		// returns, even when the action ignores its token
+		await cancelTask.ConfigureAwait(false);
 
 		// Waiting on the run this is called from would wait on itself (ktsu-dev/IntervalAction#103)
 		if (actionTask is not null && actionTask != CurrentRun.Value)
@@ -357,12 +375,15 @@ public sealed class IntervalAction : IDisposable
 	/// The run the stopped loop had claimed, if any. It is the last one that loop can start, because
 	/// <see cref="TryRun(long)"/> refuses to claim a run once the stop has happened.
 	/// </param>
+	/// <param name="cancelTask">
+	/// Completes once the running asynchronous action's token has been cancelled, and never faults.
+	/// </param>
 	/// <remarks>
 	/// A restart pending at the time of the stop has either published its loop already, which is then
 	/// the one captured here, or will see the new <see cref="StopGeneration"/> and publish nothing,
 	/// because <see cref="RestartCoreAsync"/> checks the generation and publishes under the same lock.
 	/// </remarks>
-	private void StopCore(out Task pollingTask, out Task? actionTask)
+	private void StopCore(out Task pollingTask, out Task? actionTask, out Task cancelTask)
 	{
 		CancellationTokenSource? actionCancellation;
 
@@ -375,14 +396,37 @@ public sealed class IntervalAction : IDisposable
 			actionTask = ActionTask;
 		}
 
-		// Cancelled outside the lock, because cancelling runs the action's own token callbacks
+		// Cancelling runs the token's callbacks, and whatever continuations they complete, on the
+		// cancelling thread. With an action that waits through ct.Register, that is the action's own
+		// cleanup, so cancelling here would hold the caller of Stop() for as long as the cleanup took,
+		// or deadlock a UI thread the cleanup marshals back to (ktsu-dev/IntervalAction#83). The cancel
+		// is handed to the thread pool instead, outside the lock for the same reason.
+		cancelTask = actionCancellation is null
+			? Task.CompletedTask
+			: Task.Run(() => CancelAction(actionCancellation), CancellationToken.None);
+	}
+
+	/// <summary>
+	/// Cancels a run's token on behalf of <see cref="StopCore"/>, recording a callback that throws so
+	/// <see cref="RethrowExceptions"/> reports it.
+	/// </summary>
+	/// <param name="actionCancellation">The source handed to the run.</param>
+	private void CancelAction(CancellationTokenSource actionCancellation)
+	{
 		try
 		{
-			actionCancellation?.Cancel();
+			actionCancellation.Cancel();
 		}
 		catch (ObjectDisposedException)
 		{
-			// The run finished and disposed its source after the lock was released: nothing to cancel
+			// The run finished and disposed its source before the cancel got to it: nothing to cancel
+		}
+		catch (AggregateException exception)
+		{
+			lock (Lock)
+			{
+				CancellationFailure = exception.InnerExceptions.Count == 1 ? exception.InnerException : exception;
+			}
 		}
 	}
 
@@ -466,6 +510,8 @@ public sealed class IntervalAction : IDisposable
 				_ = ActionTask.Exception;
 				ActionTask = null;
 			}
+
+			CancellationFailure = null;
 
 			// Published under the same lock as the generation check, so a stop either sees this loop as
 			// PollingTask or makes this restart publish nothing
@@ -847,6 +893,8 @@ public sealed class IntervalAction : IDisposable
 	/// when polling stopped, and then threw, would leave its exception on <see cref="ActionTask"/>
 	/// where nothing reads it. That is checked here too, so the usual shutdown sequence of
 	/// <see cref="Stop"/> then <see cref="RethrowExceptions"/> reports a failure from the final run.
+	/// Failing that, it reports an exception a callback on the asynchronous action's token threw when
+	/// a stop cancelled it.
 	/// A restart still discards such an exception, as it does a faulted polling loop.
 	/// </remarks>
 	public void RethrowExceptions()
@@ -860,6 +908,8 @@ public sealed class IntervalAction : IDisposable
 				exception = ActionTask is { IsCompleted: true } finishedAction
 					? GetActionFailure(finishedAction)
 					: null;
+
+				exception ??= CancellationFailure;
 			}
 		}
 
