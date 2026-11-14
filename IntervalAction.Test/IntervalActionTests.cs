@@ -1402,6 +1402,68 @@ public class IntervalActionTests
 	}
 
 	[TestMethod]
+	[DataRow(IntervalType.FromLastCompletion)]
+	[DataRow(IntervalType.FromLastStart)]
+	public void ChangeIntervalAppliesToTheNextPollMeasuredFromTheLastRun(IntervalType intervalType)
+	{
+		IntervalAction intervalAction = StartIdle(intervalType, out TimeSpan actionInterval);
+
+		const long lastRun = 1_000_000;
+		long intervalTicks = (long)(actionInterval.TotalSeconds * Stopwatch.Frequency);
+		intervalAction.LastRunTimestamp = lastRun;
+		intervalAction.GetTimestamp = () => lastRun + (intervalTicks / 2);
+
+		Assert.IsFalse(intervalAction.TryRun(), "Expected the run not to be due halfway through the original interval.");
+
+		intervalAction.ChangeInterval(actionInterval / 4);
+		Assert.IsTrue(intervalAction.TryRun(), "Expected a shorter interval that has already passed since the last run to make the run due.");
+	}
+
+	[TestMethod]
+	public void ChangeIntervalToALongerIntervalHoldsOffARunThatWasDue()
+	{
+		IntervalAction intervalAction = StartIdle(IntervalType.FromLastCompletion, out TimeSpan actionInterval);
+
+		const long lastRun = 1_000_000;
+		long intervalTicks = (long)(actionInterval.TotalSeconds * Stopwatch.Frequency);
+		intervalAction.LastRunTimestamp = lastRun;
+		intervalAction.GetTimestamp = () => lastRun + intervalTicks;
+
+		intervalAction.ChangeInterval(actionInterval * 2);
+		Assert.IsFalse(intervalAction.TryRun(), "Expected the longer interval to hold off a run the original interval had made due.");
+	}
+
+	[TestMethod]
+	public async Task ChangeIntervalSpeedsUpARunningAction()
+	{
+		int counter = 0;
+		using IntervalAction intervalAction = IntervalAction.Start(new()
+		{
+			PollingInterval = TimeSpan.FromMilliseconds(20),
+			ActionInterval = TimeSpan.FromHours(1),
+			Action = () => Interlocked.Increment(ref counter),
+		});
+
+		// The first run is due at once. After it, an hour-long interval would hold off every other.
+		Stopwatch stopwatch = Stopwatch.StartNew();
+		while (Volatile.Read(ref counter) < 1 && stopwatch.Elapsed < TimeSpan.FromSeconds(10))
+		{
+			await Task.Delay(10).ConfigureAwait(false);
+		}
+
+		intervalAction.ChangeInterval(TimeSpan.FromMilliseconds(20));
+
+		while (Volatile.Read(ref counter) < 3 && stopwatch.Elapsed < TimeSpan.FromSeconds(10))
+		{
+			await Task.Delay(10).ConfigureAwait(false);
+		}
+
+		await intervalAction.StopAsync().ConfigureAwait(false);
+		Assert.IsGreaterThanOrEqualTo(3, counter, $"Expected the shorter interval to take effect while running, but the action ran {counter} time(s).");
+		intervalAction.RethrowExceptions();
+	}
+
+	[TestMethod]
 	[DataRow(IntervalType.FromLastStart, 0)]
 	[DataRow(IntervalType.FromLastStart, 20)]
 	[DataRow(IntervalType.FromLastCompletion, 0)]
